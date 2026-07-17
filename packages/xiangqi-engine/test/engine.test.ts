@@ -3,6 +3,7 @@ import {
   IllegalMoveError,
   InvalidPositionError,
   applyMove,
+  choosePracticeMove,
   conservativeThreefoldRepetitionPolicy,
   createInitialPosition,
   createPosition,
@@ -621,5 +622,22 @@ describe("serialization, hashing, notation, and repetition", () => {
     );
     expect(createPositionHash(black)).not.toBe(createPositionHash(red));
     expect(getGameStatus(red, [black, red]).status).toBe("active");
+  });
+});
+
+describe("guided-game practice opponent", () => {
+  it("chooses deterministic legal moves for both sides", () => {
+    const initial = createInitialPosition();
+    const firstChoice = choosePracticeMove(initial);
+    const repeatedChoice = choosePracticeMove(initial);
+
+    expect(firstChoice).not.toBeNull();
+    expect(repeatedChoice).toEqual(firstChoice);
+    expect(isLegalMove(initial, firstChoice!)).toBe(true);
+
+    const blackToMove = applyMove(initial, firstChoice!);
+    const reply = choosePracticeMove(blackToMove, 1);
+    expect(reply).not.toBeNull();
+    expect(isLegalMove(blackToMove, reply!)).toBe(true);
   });
 });

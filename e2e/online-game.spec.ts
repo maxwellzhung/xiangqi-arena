@@ -94,9 +94,9 @@ test("two guests complete an authoritative private game and open its replay", as
     await expect(owner.getByText("Soldier a6-a5")).toBeVisible({
       timeout: 20_000,
     });
-    await expect(
-      owner.getByText(/Connected|server-authoritative/i),
-    ).toBeVisible();
+    await expect(owner.locator(".practice-note")).toContainText(
+      /Connected|server-authoritative/i,
+    );
 
     guest.once("dialog", (dialog) => void dialog.accept());
     await guest.getByRole("button", { name: "Resign" }).click();

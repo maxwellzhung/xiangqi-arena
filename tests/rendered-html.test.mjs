@@ -62,6 +62,7 @@ test("server-renders the complete interactive learning path", async () => {
   const html = await response.text();
   assert.match(html, /LEARN BY DOING/);
   assert.match(html, /I know Western chess/);
+  assert.match(html, /Take the 3-minute placement check/);
   assert.match(html, /Board, setup &amp; coordinates/);
   assert.match(html, /General &amp; Advisor/);
   assert.match(html, /The Elephant’s eye/);
@@ -69,6 +70,7 @@ test("server-renders the complete interactive learning path", async () => {
   assert.match(html, /Soldiers after the river/);
   assert.match(html, /Checkmate &amp; stalemate/);
   assert.match(html, /Final check/);
+  assert.match(html, /five-position practical readiness check/);
   assert.match(html, /Start guided first game/);
 });
 
@@ -78,7 +80,10 @@ test("guided tutorial handoff opens the coached board directly", async () => {
   const html = await response.text();
   assert.match(html, /GUIDED FIRST GAME/);
   assert.match(html, /Learn while you play/);
-  assert.match(html, /Start with a Soldier/);
+  assert.match(html, /GUIDED · VS COACH/);
+  assert.match(html, /Coach bot/);
+  assert.match(html, /Show a move/);
+  assert.match(html, /Undo turn/);
   assert.match(html, /PIECE KEY/);
   assert.doesNotMatch(html, /Choose how you want to play/);
 });
