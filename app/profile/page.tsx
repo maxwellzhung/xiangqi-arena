@@ -6,6 +6,7 @@ import {
   chatGPTSignOutPath,
   getChatGPTUser,
 } from "../chatgpt-auth";
+import { GameHistory } from "./game-history";
 
 export const metadata: Metadata = { title: "Profile" };
 export const dynamic = "force-dynamic";
@@ -68,17 +69,7 @@ export default async function ProfilePage() {
           <p>Rated games require an authenticated player account.</p>
         </section>
       </div>
-      <section className="surface empty-history">
-        <span aria-hidden="true">♜</span>
-        <h2>No saved games yet</h2>
-        <p>
-          Completed hosted games will appear here with result, color, time
-          control, rating change, and replay.
-        </p>
-        <Link className="button button-primary" href="/play">
-          Play a casual game
-        </Link>
-      </section>
+      <GameHistory />
     </AppPage>
   );
 }

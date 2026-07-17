@@ -7,10 +7,18 @@ import { OnlineLobby } from "./online-lobby";
 
 type Mode = "lobby" | "local";
 
-export function PlayLobby({ initialMode = "lobby" }: { initialMode?: Mode }) {
+export function PlayLobby({
+  initialMode = "lobby",
+  guided = false,
+}: {
+  initialMode?: Mode;
+  guided?: boolean;
+}) {
   const { t } = useLanguage();
   const [mode, setMode] = useState<Mode>(initialMode);
-  if (mode === "local") return <LocalGame onExit={() => setMode("lobby")} />;
+  if (mode === "local") {
+    return <LocalGame solo={guided} onExit={() => setMode("lobby")} />;
+  }
 
   return (
     <>

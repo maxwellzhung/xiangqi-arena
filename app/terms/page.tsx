@@ -18,7 +18,7 @@ export default function TermsPage() {
         remain to be finalized.
       </div>
       <article className="legal-copy surface">
-        <h2>Using Xiangqi Arena</h2>
+        <h2>Using Han vs Chu</h2>
         <p>
           You may play casual games as a guest. Rated play requires an account.
           You are responsible for lawful use and for activity through your

@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import {
   clientCommandSchema,
   type AuthoritativeClock,
@@ -90,7 +89,11 @@ export class DurableGameError extends Error {
   }
 }
 
-function db(): D1 {
+let databaseBinding: D1 | null = null;
+
+async function loadDatabase(): Promise<D1> {
+  if (databaseBinding) return databaseBinding;
+  const { env } = await import("cloudflare:workers");
   if (!env.DB) {
     throw new DurableGameError(
       503,
@@ -98,7 +101,19 @@ function db(): D1 {
       "The authoritative game database is unavailable.",
     );
   }
-  return env.DB;
+  databaseBinding = env.DB;
+  return databaseBinding;
+}
+
+function db(): D1 {
+  if (!databaseBinding) {
+    throw new DurableGameError(
+      503,
+      "DATABASE_UNAVAILABLE",
+      "The authoritative game database has not been initialized.",
+    );
+  }
+  return databaseBinding;
 }
 
 let schemaReady: Promise<void> | null = null;
@@ -107,8 +122,9 @@ let schemaReady: Promise<void> | null = null;
  * Sites applies checked-in migrations on deploy. The idempotent bootstrap is
  * retained for local previews and protects a newly provisioned D1 binding.
  */
-async function ensureDurableSchema(database = db()): Promise<void> {
+async function ensureDurableSchema(database?: D1): Promise<void> {
   if (schemaReady) return schemaReady;
+  const activeDatabase = database ?? (await loadDatabase());
   schemaReady = (async () => {
     const statements = [
       `CREATE TABLE IF NOT EXISTS durable_guest_profiles (
@@ -178,8 +194,32 @@ async function ensureDurableSchema(database = db()): Promise<void> {
         BEGIN
           SELECT RAISE(ABORT, 'VERSION_OR_AUTH_CONFLICT');
         END`,
+      `CREATE TRIGGER IF NOT EXISTS durable_room_claim_guard
+        BEFORE INSERT ON durable_room_claims
+        FOR EACH ROW
+        WHEN NOT EXISTS (
+          SELECT 1 FROM private_rooms pr
+          WHERE pr.code = NEW.room_code
+            AND pr.status = 'waiting'
+            AND pr.expires_at > CAST(strftime('%s', 'now') AS INTEGER) * 1000
+        )
+        BEGIN
+          SELECT RAISE(ABORT, 'ROOM_UNAVAILABLE');
+        END`,
+      `CREATE TRIGGER IF NOT EXISTS durable_matchmaking_claim_guard
+        BEFORE INSERT ON durable_matchmaking_claims
+        FOR EACH ROW
+        WHEN NOT EXISTS (
+          SELECT 1 FROM matchmaking_entries me
+          WHERE me.id = NEW.entry_id AND me.status = 'waiting'
+        )
+        BEGIN
+          SELECT RAISE(ABORT, 'MATCH_ENTRY_UNAVAILABLE');
+        END`,
     ];
-    await database.batch(statements.map((sql) => database.prepare(sql)));
+    await activeDatabase.batch(
+      statements.map((sql) => activeDatabase.prepare(sql)),
+    );
   })().catch((error) => {
     schemaReady = null;
     throw error;
@@ -205,18 +245,25 @@ function randomToken(bytes = 32): string {
   const value = crypto.getRandomValues(new Uint8Array(bytes));
   let binary = "";
   value.forEach((byte) => (binary += String.fromCharCode(byte)));
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 
 async function sha256(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value),
+  );
   return Array.from(new Uint8Array(digest), (byte) =>
     byte.toString(16).padStart(2, "0"),
   ).join("");
 }
 
 function normalizeDisplayName(value: unknown): string {
-  if (typeof value !== "string") return `Guest ${randomToken(3).slice(0, 4).toUpperCase()}`;
+  if (typeof value !== "string")
+    return `Guest ${randomToken(3).slice(0, 4).toUpperCase()}`;
   const normalized = value.trim().replace(/\s+/g, " ").slice(0, 64);
   return normalized || `Guest ${randomToken(3).slice(0, 4).toUpperCase()}`;
 }
@@ -237,7 +284,12 @@ async function findGuest(request: Request): Promise<Guest | null> {
     .bind(tokenHash)
     .first<{ id: string; display_name: string }>();
   if (!row) return null;
-  return { id: row.id, kind: "guest", displayName: row.display_name, rating: 1500 };
+  return {
+    id: row.id,
+    kind: "guest",
+    displayName: row.display_name,
+    rating: 1500,
+  };
 }
 
 async function requireGuest(request: Request): Promise<Guest> {
@@ -250,7 +302,9 @@ async function requireGuest(request: Request): Promise<Guest> {
     );
   }
   await db()
-    .prepare("UPDATE guest_identities SET last_active_at = CURRENT_TIMESTAMP WHERE player_id = ?")
+    .prepare(
+      "UPDATE guest_identities SET last_active_at = CURRENT_TIMESTAMP WHERE player_id = ?",
+    )
     .bind(guest.id)
     .run();
   return guest;
@@ -262,7 +316,9 @@ export async function createGuestSession(
 ): Promise<Response> {
   await ensureDurableSchema();
   const displayName = normalizeDisplayName(
-    body && typeof body === "object" ? (body as { displayName?: unknown }).displayName : undefined,
+    body && typeof body === "object"
+      ? (body as { displayName?: unknown }).displayName
+      : undefined,
   );
   const existing = await findGuest(request);
   if (existing) {
@@ -283,13 +339,19 @@ export async function createGuestSession(
   const database = db();
   await database.batch([
     database
-      .prepare("INSERT INTO players(id, kind, status) VALUES (?, 'guest', 'active')")
+      .prepare(
+        "INSERT INTO players(id, kind, status) VALUES (?, 'guest', 'active')",
+      )
       .bind(playerId),
     database
-      .prepare("INSERT INTO guest_identities(player_id, signed_token_ref) VALUES (?, ?)")
+      .prepare(
+        "INSERT INTO guest_identities(player_id, signed_token_ref) VALUES (?, ?)",
+      )
       .bind(playerId, tokenHash),
     database
-      .prepare("INSERT INTO durable_guest_profiles(player_id, display_name) VALUES (?, ?)")
+      .prepare(
+        "INSERT INTO durable_guest_profiles(player_id, display_name) VALUES (?, ?)",
+      )
       .bind(playerId, displayName),
   ]);
   return Response.json(
@@ -298,7 +360,10 @@ export async function createGuestSession(
   );
 }
 
-async function publicPlayer(database: D1, playerId: string): Promise<PublicPlayer> {
+async function publicPlayer(
+  database: D1,
+  playerId: string,
+): Promise<PublicPlayer> {
   const row = await database
     .prepare(
       `SELECT p.id, p.kind,
@@ -311,9 +376,24 @@ async function publicPlayer(database: D1, playerId: string): Promise<PublicPlaye
        WHERE p.id = ?`,
     )
     .bind(playerId)
-    .first<{ id: string; kind: "user" | "guest"; display_name: string; rating: number }>();
-  if (!row) throw new DurableGameError(404, "PLAYER_NOT_FOUND", "A game player no longer exists.");
-  return { id: row.id, kind: row.kind, displayName: row.display_name, rating: row.rating };
+    .first<{
+      id: string;
+      kind: "user" | "guest";
+      display_name: string;
+      rating: number;
+    }>();
+  if (!row)
+    throw new DurableGameError(
+      404,
+      "PLAYER_NOT_FOUND",
+      "A game player no longer exists.",
+    );
+  return {
+    id: row.id,
+    kind: row.kind,
+    displayName: row.display_name,
+    rating: row.rating,
+  };
 }
 
 function clockAt(game: GameRow, now = Date.now()): AuthoritativeClock {
@@ -363,7 +443,20 @@ async function settleTimeout(database: D1, game: GameRow): Promise<GameRow> {
   const loser = game.clock_running!;
   const result = loser === "red" ? "black-win" : "red-win";
   const completionToken = crypto.randomUUID();
+  const timeoutCommandId = crypto.randomUUID();
   const databaseStatements = [
+    database
+      .prepare(
+        `INSERT INTO command_deduplication(command_id, game_id, player_id, command_type, stored_response)
+         VALUES (?, ?, ?, 'authoritativeTimeout', '{}')`,
+      )
+      .bind(timeoutCommandId, game.id, game.red_player_id),
+    database
+      .prepare(
+        `INSERT INTO durable_game_command_guards(command_id, game_id, expected_version)
+         VALUES (?, ?, ?)`,
+      )
+      .bind(timeoutCommandId, game.id, game.version),
     database
       .prepare(
         `INSERT INTO game_completions(game_id, completion_token, result, termination_reason)
@@ -379,7 +472,15 @@ async function settleTimeout(database: D1, game: GameRow): Promise<GameRow> {
              ended_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
          WHERE id = ? AND version = ? AND status = 'active'`,
       )
-      .bind(result, completionToken, clock.redMs, clock.blackMs, Date.now(), game.id, game.version),
+      .bind(
+        result,
+        completionToken,
+        clock.redMs,
+        clock.blackMs,
+        Date.now(),
+        game.id,
+        game.version,
+      ),
     database
       .prepare("DELETE FROM durable_game_negotiations WHERE game_id = ?")
       .bind(game.id),
@@ -394,7 +495,12 @@ async function settleTimeout(database: D1, game: GameRow): Promise<GameRow> {
 
 async function snapshot(database: D1, gameId: string): Promise<GameSnapshot> {
   const loaded = await gameRow(database, gameId);
-  if (!loaded) throw new DurableGameError(404, "GAME_NOT_FOUND", "That game does not exist.");
+  if (!loaded)
+    throw new DurableGameError(
+      404,
+      "GAME_NOT_FOUND",
+      "That game does not exist.",
+    );
   const game = await settleTimeout(database, loaded);
   const moveRows = await database
     .prepare(
@@ -451,7 +557,13 @@ function eventStatement(
       `INSERT INTO durable_player_events(id, player_id, game_id, payload, created_at_ms)
        VALUES (?, ?, ?, ?, ?)`,
     )
-    .bind(crypto.randomUUID(), playerId, gameId, JSON.stringify(event), Date.now());
+    .bind(
+      crypto.randomUUID(),
+      playerId,
+      gameId,
+      JSON.stringify(event),
+      Date.now(),
+    );
 }
 
 function dedupStatement(
@@ -466,7 +578,13 @@ function dedupStatement(
       `INSERT INTO command_deduplication(command_id, game_id, player_id, command_type, stored_response)
        VALUES (?, ?, ?, ?, ?)`,
     )
-    .bind(command.commandId, gameId, playerId, command.type, JSON.stringify(response));
+    .bind(
+      command.commandId,
+      gameId,
+      playerId,
+      command.type,
+      JSON.stringify(response),
+    );
 }
 
 async function priorCommand(
@@ -482,7 +600,11 @@ async function priorCommand(
     .first<{ player_id: string; stored_response: string }>();
   if (!row) return null;
   if (row.player_id !== playerId) {
-    throw new DurableGameError(409, "COMMAND_ID_REUSED", "That command id belongs to another player.");
+    throw new DurableGameError(
+      409,
+      "COMMAND_ID_REUSED",
+      "That command id belongs to another player.",
+    );
   }
   return JSON.parse(row.stored_response) as { events: ServerEvent[] };
 }
@@ -543,7 +665,10 @@ function gameInsertStatement(
 
 function randomRoomCode(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(6));
-  return Array.from(bytes, (byte) => ROOM_ALPHABET[byte % ROOM_ALPHABET.length]).join("");
+  return Array.from(
+    bytes,
+    (byte) => ROOM_ALPHABET[byte % ROOM_ALPHABET.length],
+  ).join("");
 }
 
 function isConstraintFailure(error: unknown): boolean {
@@ -583,7 +708,11 @@ async function createPrivateRoom(
       if (!isConstraintFailure(error)) throw error;
     }
   }
-  throw new DurableGameError(503, "ROOM_CODE_EXHAUSTED", "A private room could not be allocated. Try again.");
+  throw new DurableGameError(
+    503,
+    "ROOM_CODE_EXHAUSTED",
+    "A private room could not be allocated. Try again.",
+  );
 }
 
 async function joinPrivateRoom(
@@ -605,14 +734,26 @@ async function joinPrivateRoom(
       expires_at: number;
     }>();
   if (!room || room.status !== "waiting" || room.expires_at <= Date.now()) {
-    throw new DurableGameError(404, "ROOM_UNAVAILABLE", "That room is missing, expired, or already joined.");
+    throw new DurableGameError(
+      404,
+      "ROOM_UNAVAILABLE",
+      "That room is missing, expired, or already joined.",
+    );
   }
   if (room.owner_player_id === guest.id) {
-    throw new DurableGameError(409, "SELF_PLAY", "Open the invite in a different guest browser session.");
+    throw new DurableGameError(
+      409,
+      "SELF_PLAY",
+      "Open the invite in a different guest browser session.",
+    );
   }
 
   const gameId = crypto.randomUUID();
-  const joinerEvent: ServerEvent = { type: "roomJoined", gameId, color: "black" };
+  const joinerEvent: ServerEvent = {
+    type: "roomJoined",
+    gameId,
+    color: "black",
+  };
   const ownerEvent: ServerEvent = { type: "roomJoined", gameId, color: "red" };
   const response = { events: [joinerEvent] };
   try {
@@ -646,7 +787,11 @@ async function joinPrivateRoom(
     const prior = await priorCommand(database, command.commandId, guest.id);
     if (prior) return prior;
     if (isConstraintFailure(error)) {
-      throw new DurableGameError(409, "ROOM_ALREADY_JOINED", "Another player joined that room first.");
+      throw new DurableGameError(
+        409,
+        "ROOM_ALREADY_JOINED",
+        "Another player joined that room first.",
+      );
     }
     throw error;
   }
@@ -658,7 +803,11 @@ async function joinMatchmaking(
   command: Extract<ClientCommand, { type: "joinMatchmaking" }>,
 ): Promise<{ events: ServerEvent[] }> {
   if (command.rated) {
-    throw new DurableGameError(403, "RATED_REQUIRES_ACCOUNT", "Rated games require a signed-in account.");
+    throw new DurableGameError(
+      403,
+      "RATED_REQUIRES_ACCOUNT",
+      "Rated games require a signed-in account.",
+    );
   }
   const alreadyWaiting = await database
     .prepare(
@@ -671,7 +820,9 @@ async function joinMatchmaking(
     .first<{ id: string }>();
   if (alreadyWaiting) {
     const response = { events: [] as ServerEvent[] };
-    await database.batch([dedupStatement(database, command, guest.id, null, response)]);
+    await database.batch([
+      dedupStatement(database, command, guest.id, null, response),
+    ]);
     return response;
   }
 
@@ -701,9 +852,17 @@ async function joinMatchmaking(
                  id, player_id, time_control_id, rated, rating, status, joined_at, last_heartbeat_at
                ) VALUES (?, ?, ?, 0, 1500, 'waiting', ?, ?)`,
             )
-            .bind(entryId, guest.id, command.timeControlId, Date.now(), Date.now()),
+            .bind(
+              entryId,
+              guest.id,
+              command.timeControlId,
+              Date.now(),
+              Date.now(),
+            ),
           database
-            .prepare("INSERT INTO durable_matchmaking_presence(player_id, entry_id) VALUES (?, ?)")
+            .prepare(
+              "INSERT INTO durable_matchmaking_presence(player_id, entry_id) VALUES (?, ?)",
+            )
             .bind(guest.id, entryId),
           dedupStatement(database, command, guest.id, null, response),
         ]);
@@ -718,7 +877,11 @@ async function joinMatchmaking(
 
     const gameId = crypto.randomUUID();
     const myEvent: ServerEvent = { type: "matchFound", gameId, color: "black" };
-    const opponentEvent: ServerEvent = { type: "matchFound", gameId, color: "red" };
+    const opponentEvent: ServerEvent = {
+      type: "matchFound",
+      gameId,
+      color: "red",
+    };
     const response = { events: [myEvent] };
     try {
       await database.batch([
@@ -726,9 +889,16 @@ async function joinMatchmaking(
           .prepare(
             `INSERT INTO matchmaking_entries(
                id, player_id, time_control_id, rated, rating, status, joined_at, last_heartbeat_at, matched_game_id
-             ) VALUES (?, ?, ?, 0, 1500, 'matched', ?, ?, ?)`,
+               ) VALUES (?, ?, ?, 0, 1500, 'waiting', ?, ?, ?)`,
           )
-          .bind(entryId, guest.id, command.timeControlId, Date.now(), Date.now(), gameId),
+          .bind(
+            entryId,
+            guest.id,
+            command.timeControlId,
+            Date.now(),
+            Date.now(),
+            gameId,
+          ),
         gameInsertStatement(
           database,
           gameId,
@@ -739,20 +909,26 @@ async function joinMatchmaking(
           false,
         ),
         database
-          .prepare("INSERT INTO durable_matchmaking_claims(entry_id, game_id) VALUES (?, ?)")
+          .prepare(
+            "INSERT INTO durable_matchmaking_claims(entry_id, game_id) VALUES (?, ?)",
+          )
           .bind(opponent.id, gameId),
         database
-          .prepare("INSERT INTO durable_matchmaking_claims(entry_id, game_id) VALUES (?, ?)")
+          .prepare(
+            "INSERT INTO durable_matchmaking_claims(entry_id, game_id) VALUES (?, ?)",
+          )
           .bind(entryId, gameId),
         database
           .prepare(
             `UPDATE matchmaking_entries
              SET status = 'matched', matched_game_id = ?
-             WHERE id = ? AND status = 'waiting'`,
+             WHERE id IN (?, ?) AND status = 'waiting'`,
           )
-          .bind(gameId, opponent.id),
+          .bind(gameId, opponent.id, entryId),
         database
-          .prepare("DELETE FROM durable_matchmaking_presence WHERE player_id IN (?, ?)")
+          .prepare(
+            "DELETE FROM durable_matchmaking_presence WHERE player_id IN (?, ?)",
+          )
           .bind(guest.id, opponent.player_id),
         dedupStatement(database, command, guest.id, gameId, response),
         eventStatement(database, opponent.player_id, gameId, opponentEvent),
@@ -764,7 +940,11 @@ async function joinMatchmaking(
       if (!isConstraintFailure(error)) throw error;
     }
   }
-  throw new DurableGameError(409, "MATCH_RACE", "Another match claimed that opponent. Try searching again.");
+  throw new DurableGameError(
+    409,
+    "MATCH_RACE",
+    "Another match claimed that opponent. Try searching again.",
+  );
 }
 
 async function leaveMatchmaking(
@@ -814,7 +994,8 @@ async function publishOpponent(
   actorId: string,
   event: ServerEvent,
 ): Promise<void> {
-  const opponentId = game.red_player_id === actorId ? game.black_player_id : game.red_player_id;
+  const opponentId =
+    game.red_player_id === actorId ? game.black_player_id : game.red_player_id;
   await eventStatement(database, opponentId, game.id, event).run();
 }
 
@@ -829,19 +1010,29 @@ async function rememberConflict(
       ? {
           type: "moveRejected",
           commandId: command.commandId,
-          reason: "The game changed before that command arrived. The latest position has been restored.",
+          reason:
+            "The game changed before that command arrived. The latest position has been restored.",
           snapshot: current,
         }
       : {
           type: "protocolError",
           code: "VERSION_CONFLICT",
-          message: "The game changed before that command arrived. The latest state has been restored.",
+          message:
+            "The game changed before that command arrived. The latest state has been restored.",
         };
   const response = { events: [event] };
   try {
-    await dedupStatement(database, command, guest.id, command.gameId, response).run();
+    await dedupStatement(
+      database,
+      command,
+      guest.id,
+      command.gameId,
+      response,
+    ).run();
   } catch {
-    return (await priorCommand(database, command.commandId, guest.id)) ?? response;
+    return (
+      (await priorCommand(database, command.commandId, guest.id)) ?? response
+    );
   }
   return response;
 }
@@ -852,18 +1043,38 @@ async function mutateGame(
   command: Extract<ClientCommand, { expectedVersion: number }>,
 ): Promise<{ events: ServerEvent[] }> {
   let game = await gameRow(database, command.gameId);
-  if (!game) throw new DurableGameError(404, "GAME_NOT_FOUND", "That game does not exist.");
+  if (!game)
+    throw new DurableGameError(
+      404,
+      "GAME_NOT_FOUND",
+      "That game does not exist.",
+    );
   const color = colorFor(game, guest.id);
-  if (!color) throw new DurableGameError(403, "NOT_A_PLAYER", "This guest is not a player in that game.");
+  if (!color)
+    throw new DurableGameError(
+      403,
+      "NOT_A_PLAYER",
+      "This guest is not a player in that game.",
+    );
   game = await settleTimeout(database, game);
   const current = await snapshot(database, game.id);
 
   if (command.type === "requestStateSync") {
-    const response = { events: [{ type: "stateSnapshot", snapshot: current } as ServerEvent] };
+    const response = {
+      events: [{ type: "stateSnapshot", snapshot: current } as ServerEvent],
+    };
     try {
-      await dedupStatement(database, command, guest.id, game.id, response).run();
+      await dedupStatement(
+        database,
+        command,
+        guest.id,
+        game.id,
+        response,
+      ).run();
     } catch {
-      return (await priorCommand(database, command.commandId, guest.id)) ?? response;
+      return (
+        (await priorCommand(database, command.commandId, guest.id)) ?? response
+      );
     }
     return response;
   }
@@ -879,7 +1090,12 @@ async function mutateGame(
   const statements: D1PreparedStatement[] = [];
 
   if (command.type === "submitMove") {
-    if (game.status !== "active") throw new DurableGameError(409, "GAME_NOT_ACTIVE", "That game has ended.");
+    if (game.status !== "active")
+      throw new DurableGameError(
+        409,
+        "GAME_NOT_ACTIVE",
+        "That game has ended.",
+      );
     if (game.current_turn !== color) {
       const event: ServerEvent = {
         type: "moveRejected",
@@ -888,7 +1104,13 @@ async function mutateGame(
         snapshot: current,
       };
       response = { events: [event] };
-      await dedupStatement(database, command, guest.id, game.id, response).run();
+      await dedupStatement(
+        database,
+        command,
+        guest.id,
+        game.id,
+        response,
+      ).run();
       return response;
     }
     const position = deserializePosition(game.current_position);
@@ -901,7 +1123,13 @@ async function mutateGame(
         snapshot: current,
       };
       response = { events: [event] };
-      await dedupStatement(database, command, guest.id, game.id, response).run();
+      await dedupStatement(
+        database,
+        command,
+        guest.id,
+        game.id,
+        response,
+      ).run();
       return response;
     }
     const capturedPiece = getPiece(position, command.move.to)?.type ?? null;
@@ -909,7 +1137,9 @@ async function mutateGame(
     const serialized = serializePosition(nextPosition);
     const nextHash = createPositionHash(nextPosition);
     const historyRows = await database
-      .prepare("SELECT position_hash FROM moves WHERE game_id = ? ORDER BY sequence ASC")
+      .prepare(
+        "SELECT position_hash FROM moves WHERE game_id = ? ORDER BY sequence ASC",
+      )
       .bind(game.id)
       .all<{ position_hash: string }>();
     const status = getGameStatus(nextPosition, [
@@ -993,7 +1223,12 @@ async function mutateGame(
             `INSERT INTO game_completions(game_id, completion_token, result, termination_reason)
              VALUES (?, ?, ?, ?)`,
           )
-          .bind(game.id, completionToken, status.result, status.terminationReason),
+          .bind(
+            game.id,
+            completionToken,
+            status.result,
+            status.terminationReason,
+          ),
         database
           .prepare(
             `UPDATE games SET current_position = ?, position_hash = ?, version = version + 1,
@@ -1039,18 +1274,35 @@ async function mutateGame(
           ),
       );
     }
-    statements.push(database.prepare("DELETE FROM durable_game_negotiations WHERE game_id = ?").bind(game.id));
+    statements.push(
+      database
+        .prepare("DELETE FROM durable_game_negotiations WHERE game_id = ?")
+        .bind(game.id),
+    );
   } else if (command.type === "resign") {
-    if (game.status !== "active") throw new DurableGameError(409, "GAME_NOT_ACTIVE", "That game has ended.");
+    if (game.status !== "active")
+      throw new DurableGameError(
+        409,
+        "GAME_NOT_ACTIVE",
+        "That game has ended.",
+      );
     const result = color === "red" ? "black-win" : "red-win";
-    const next = completedSnapshot(current, game.version + 1, databaseClock, result, "resignation");
+    const next = completedSnapshot(
+      current,
+      game.version + 1,
+      databaseClock,
+      result,
+      "resignation",
+    );
     const event: ServerEvent = { type: "gameEnded", snapshot: next };
     response = { events: [event] };
     opponentEvent = event;
     const completionToken = crypto.randomUUID();
     statements.push(
       database
-        .prepare("INSERT INTO game_completions(game_id, completion_token, result, termination_reason) VALUES (?, ?, ?, 'resignation')")
+        .prepare(
+          "INSERT INTO game_completions(game_id, completion_token, result, termination_reason) VALUES (?, ?, ?, 'resignation')",
+        )
         .bind(game.id, completionToken, result),
       database
         .prepare(
@@ -1059,14 +1311,42 @@ async function mutateGame(
              clock_running = NULL, clock_measured_at = ?, ended_at = CURRENT_TIMESTAMP,
              updated_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ? AND status = 'active'`,
         )
-        .bind(result, completionToken, databaseClock.redMs, databaseClock.blackMs, now, game.id, game.version),
-      database.prepare("DELETE FROM durable_game_negotiations WHERE game_id = ?").bind(game.id),
+        .bind(
+          result,
+          completionToken,
+          databaseClock.redMs,
+          databaseClock.blackMs,
+          now,
+          game.id,
+          game.version,
+        ),
+      database
+        .prepare("DELETE FROM durable_game_negotiations WHERE game_id = ?")
+        .bind(game.id),
     );
   } else if (command.type === "offerDraw") {
-    if (game.status !== "active") throw new DurableGameError(409, "GAME_NOT_ACTIVE", "That game has ended.");
-    if (game.draw_offered_by) throw new DurableGameError(409, "DRAW_ALREADY_OFFERED", "A draw offer is already pending.");
-    const next = { ...current, version: game.version + 1, drawOfferedBy: color };
-    const event: ServerEvent = { type: "drawOffered", gameId: game.id, snapshot: next };
+    if (game.status !== "active")
+      throw new DurableGameError(
+        409,
+        "GAME_NOT_ACTIVE",
+        "That game has ended.",
+      );
+    if (game.draw_offered_by)
+      throw new DurableGameError(
+        409,
+        "DRAW_ALREADY_OFFERED",
+        "A draw offer is already pending.",
+      );
+    const next = {
+      ...current,
+      version: game.version + 1,
+      drawOfferedBy: color,
+    };
+    const event: ServerEvent = {
+      type: "drawOffered",
+      gameId: game.id,
+      snapshot: next,
+    };
     response = { events: [event] };
     opponentEvent = event;
     statements.push(
@@ -1078,22 +1358,36 @@ async function mutateGame(
         )
         .bind(game.id, color),
       database
-        .prepare("UPDATE games SET version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ? AND status = 'active'")
+        .prepare(
+          "UPDATE games SET version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ? AND status = 'active'",
+        )
         .bind(game.id, game.version),
     );
   } else if (command.type === "respondToDraw") {
     if (game.status !== "active" || game.draw_offered_by !== opponentColor) {
-      throw new DurableGameError(409, "NO_DRAW_OFFER", "There is no opponent draw offer to answer.");
+      throw new DurableGameError(
+        409,
+        "NO_DRAW_OFFER",
+        "There is no opponent draw offer to answer.",
+      );
     }
     if (command.accept) {
-      const next = completedSnapshot(current, game.version + 1, databaseClock, "draw", "draw-agreement");
+      const next = completedSnapshot(
+        current,
+        game.version + 1,
+        databaseClock,
+        "draw",
+        "draw-agreement",
+      );
       const event: ServerEvent = { type: "gameEnded", snapshot: next };
       response = { events: [event] };
       opponentEvent = event;
       const completionToken = crypto.randomUUID();
       statements.push(
         database
-          .prepare("INSERT INTO game_completions(game_id, completion_token, result, termination_reason) VALUES (?, ?, 'draw', 'draw-agreement')")
+          .prepare(
+            "INSERT INTO game_completions(game_id, completion_token, result, termination_reason) VALUES (?, ?, 'draw', 'draw-agreement')",
+          )
           .bind(game.id, completionToken),
         database
           .prepare(
@@ -1102,27 +1396,61 @@ async function mutateGame(
                clock_running = NULL, clock_measured_at = ?, ended_at = CURRENT_TIMESTAMP,
                updated_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ? AND status = 'active'`,
           )
-          .bind(completionToken, databaseClock.redMs, databaseClock.blackMs, now, game.id, game.version),
-        database.prepare("DELETE FROM durable_game_negotiations WHERE game_id = ?").bind(game.id),
+          .bind(
+            completionToken,
+            databaseClock.redMs,
+            databaseClock.blackMs,
+            now,
+            game.id,
+            game.version,
+          ),
+        database
+          .prepare("DELETE FROM durable_game_negotiations WHERE game_id = ?")
+          .bind(game.id),
       );
     } else {
-      const next = { ...current, version: game.version + 1, drawOfferedBy: null };
-      const event: ServerEvent = { type: "drawOfferCancelled", gameId: game.id, snapshot: next };
+      const next = {
+        ...current,
+        version: game.version + 1,
+        drawOfferedBy: null,
+      };
+      const event: ServerEvent = {
+        type: "drawOfferCancelled",
+        gameId: game.id,
+        snapshot: next,
+      };
       response = { events: [event] };
       opponentEvent = event;
       statements.push(
         database
-          .prepare("UPDATE durable_game_negotiations SET draw_offered_by = NULL, updated_at = CURRENT_TIMESTAMP WHERE game_id = ?")
+          .prepare(
+            "UPDATE durable_game_negotiations SET draw_offered_by = NULL, updated_at = CURRENT_TIMESTAMP WHERE game_id = ?",
+          )
           .bind(game.id),
         database
-          .prepare("UPDATE games SET version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+          .prepare(
+            "UPDATE games SET version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ?",
+          )
           .bind(game.id, game.version),
       );
     }
   } else if (command.type === "requestRematch") {
-    if (game.status !== "completed") throw new DurableGameError(409, "GAME_NOT_COMPLETED", "A rematch is available after the game ends.");
-    const next = { ...current, version: game.version + 1, rematchRequestedBy: color };
-    const event: ServerEvent = { type: "rematchRequested", gameId: game.id, snapshot: next };
+    if (game.status !== "completed")
+      throw new DurableGameError(
+        409,
+        "GAME_NOT_COMPLETED",
+        "A rematch is available after the game ends.",
+      );
+    const next = {
+      ...current,
+      version: game.version + 1,
+      rematchRequestedBy: color,
+    };
+    const event: ServerEvent = {
+      type: "rematchRequested",
+      gameId: game.id,
+      snapshot: next,
+    };
     response = { events: [event] };
     opponentEvent = event;
     statements.push(
@@ -1134,24 +1462,41 @@ async function mutateGame(
         )
         .bind(game.id, color),
       database
-        .prepare("UPDATE games SET version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+        .prepare(
+          "UPDATE games SET version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ?",
+        )
         .bind(game.id, game.version),
     );
   } else if (command.type === "respondToRematch") {
-    if (game.status !== "completed" || game.rematch_requested_by !== opponentColor) {
-      throw new DurableGameError(409, "NO_REMATCH_REQUEST", "There is no opponent rematch request to answer.");
+    if (
+      game.status !== "completed" ||
+      game.rematch_requested_by !== opponentColor
+    ) {
+      throw new DurableGameError(
+        409,
+        "NO_REMATCH_REQUEST",
+        "There is no opponent rematch request to answer.",
+      );
     }
     if (!command.accept) {
-      const next = { ...current, version: game.version + 1, rematchRequestedBy: null };
+      const next = {
+        ...current,
+        version: game.version + 1,
+        rematchRequestedBy: null,
+      };
       const event: ServerEvent = { type: "stateSnapshot", snapshot: next };
       response = { events: [event] };
       opponentEvent = event;
       statements.push(
         database
-          .prepare("UPDATE durable_game_negotiations SET rematch_requested_by = NULL, updated_at = CURRENT_TIMESTAMP WHERE game_id = ?")
+          .prepare(
+            "UPDATE durable_game_negotiations SET rematch_requested_by = NULL, updated_at = CURRENT_TIMESTAMP WHERE game_id = ?",
+          )
           .bind(game.id),
         database
-          .prepare("UPDATE games SET version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+          .prepare(
+            "UPDATE games SET version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ?",
+          )
           .bind(game.id, game.version),
       );
     } else {
@@ -1160,28 +1505,59 @@ async function mutateGame(
       const newBlackId = game.red_player_id;
       const myNewColor: Color = newRedId === guest.id ? "red" : "black";
       const theirNewColor: Color = myNewColor === "red" ? "black" : "red";
-      const myEvent: ServerEvent = { type: "matchFound", gameId: rematchId, color: myNewColor };
-      opponentEvent = { type: "matchFound", gameId: rematchId, color: theirNewColor };
+      const myEvent: ServerEvent = {
+        type: "matchFound",
+        gameId: rematchId,
+        color: myNewColor,
+      };
+      opponentEvent = {
+        type: "matchFound",
+        gameId: rematchId,
+        color: theirNewColor,
+      };
       response = { events: [myEvent] };
       statements.push(
-        gameInsertStatement(database, rematchId, "rematch", newRedId, newBlackId, game.time_control_id, Boolean(game.rated)),
+        gameInsertStatement(
+          database,
+          rematchId,
+          "rematch",
+          newRedId,
+          newBlackId,
+          game.time_control_id,
+          Boolean(game.rated),
+        ),
         database
-          .prepare("INSERT INTO durable_rematches(source_game_id, rematch_game_id) VALUES (?, ?)")
+          .prepare(
+            "INSERT INTO durable_rematches(source_game_id, rematch_game_id) VALUES (?, ?)",
+          )
           .bind(game.id, rematchId),
-        database.prepare("DELETE FROM durable_game_negotiations WHERE game_id = ?").bind(game.id),
         database
-          .prepare("UPDATE games SET version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ?")
+          .prepare("DELETE FROM durable_game_negotiations WHERE game_id = ?")
+          .bind(game.id),
+        database
+          .prepare(
+            "UPDATE games SET version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ?",
+          )
           .bind(game.id, game.version),
       );
     }
   } else {
-    throw new DurableGameError(400, "UNSUPPORTED_COMMAND", "That game command is not supported.");
+    throw new DurableGameError(
+      400,
+      "UNSUPPORTED_COMMAND",
+      "That game command is not supported.",
+    );
   }
 
   try {
     await database.batch([
       dedupStatement(database, command, guest.id, game.id, response),
-      guardStatement(database, command.commandId, game.id, command.expectedVersion),
+      guardStatement(
+        database,
+        command.commandId,
+        game.id,
+        command.expectedVersion,
+      ),
       ...statements,
     ]);
   } catch (error) {
@@ -1193,6 +1569,418 @@ async function mutateGame(
     }
     throw error;
   }
-  if (opponentEvent) await publishOpponent(database, game, guest.id, opponentEvent);
+  if (opponentEvent)
+    await publishOpponent(database, game, guest.id, opponentEvent);
   return response;
+}
+
+export async function commandResponse(
+  request: Request,
+  body: unknown,
+): Promise<Response> {
+  await ensureDurableSchema();
+  const guest = await requireGuest(request);
+  const parsed = clientCommandSchema.safeParse(body);
+  if (!parsed.success) {
+    throw new DurableGameError(
+      400,
+      "INVALID_COMMAND",
+      "The command payload is invalid.",
+    );
+  }
+  const command = parsed.data;
+  const database = db();
+  const prior = await priorCommand(database, command.commandId, guest.id);
+  if (prior) return Response.json(prior);
+
+  let result: { events: ServerEvent[] };
+  switch (command.type) {
+    case "createPrivateRoom":
+      result = await createPrivateRoom(database, request, guest, command);
+      break;
+    case "joinPrivateRoom":
+      result = await joinPrivateRoom(database, guest, command);
+      break;
+    case "joinMatchmaking":
+      result = await joinMatchmaking(database, guest, command);
+      break;
+    case "leaveMatchmaking":
+      result = await leaveMatchmaking(database, guest, command);
+      break;
+    case "heartbeat": {
+      await database
+        .prepare(
+          `UPDATE matchmaking_entries SET last_heartbeat_at = ?
+           WHERE id IN (SELECT entry_id FROM durable_matchmaking_presence WHERE player_id = ?)
+             AND status = 'waiting'`,
+        )
+        .bind(Date.now(), guest.id)
+        .run();
+      result = { events: [] };
+      break;
+    }
+    default:
+      result = await mutateGame(database, guest, command);
+  }
+  return Response.json(result, { headers: { "cache-control": "no-store" } });
+}
+
+export async function meResponse(request: Request): Promise<Response> {
+  const guest = await requireGuest(request);
+  return Response.json(
+    { player: guest },
+    { headers: { "cache-control": "no-store" } },
+  );
+}
+
+export async function activeGameResponse(request: Request): Promise<Response> {
+  const guest = await requireGuest(request);
+  const database = db();
+  const row = await database
+    .prepare(
+      `SELECT id FROM games
+       WHERE status = 'active' AND (red_player_id = ? OR black_player_id = ?)
+       ORDER BY created_at DESC LIMIT 1`,
+    )
+    .bind(guest.id, guest.id)
+    .first<{ id: string }>();
+  if (!row)
+    return Response.json(
+      { activeGame: null },
+      { headers: { "cache-control": "no-store" } },
+    );
+  const game = await gameRow(database, row.id);
+  if (!game) return Response.json({ activeGame: null });
+  const color = colorFor(game, guest.id)!;
+  const state = await snapshot(database, game.id);
+  if (state.status !== "active") return Response.json({ activeGame: null });
+  return Response.json(
+    { activeGame: { snapshot: state, color } },
+    { headers: { "cache-control": "no-store" } },
+  );
+}
+
+export async function historyResponse(
+  request: Request,
+  gameId: string,
+): Promise<Response> {
+  const guest = await requireGuest(request);
+  await requireGameMembership(db(), guest, gameId);
+  return Response.json(
+    { snapshot: await snapshot(db(), gameId) },
+    { headers: { "cache-control": "no-store" } },
+  );
+}
+
+export async function gameListResponse(request: Request): Promise<Response> {
+  const guest = await requireGuest(request);
+  const result = await db()
+    .prepare(
+      `SELECT id AS gameId, status, result, termination_reason AS terminationReason,
+              time_control_id AS timeControlId, rated, created_at AS createdAt,
+              ended_at AS endedAt,
+              CASE WHEN red_player_id = ? THEN 'red' ELSE 'black' END AS color
+       FROM games
+       WHERE red_player_id = ? OR black_player_id = ?
+       ORDER BY created_at DESC
+       LIMIT 50`,
+    )
+    .bind(guest.id, guest.id, guest.id)
+    .all<{
+      gameId: string;
+      status: GameSnapshot["status"];
+      result: GameSnapshot["result"];
+      terminationReason: GameSnapshot["terminationReason"];
+      timeControlId: TimeControlId;
+      rated: number;
+      createdAt: string;
+      endedAt: string | null;
+      color: Color;
+    }>();
+  return Response.json(
+    {
+      games: (result.results ?? []).map((game) => ({
+        ...game,
+        rated: Boolean(game.rated),
+      })),
+    },
+    { headers: { "cache-control": "no-store" } },
+  );
+}
+
+async function requireGameMembership(
+  database: D1,
+  guest: Guest,
+  gameId: string,
+): Promise<{ game: GameRow; color: Color }> {
+  const game = await gameRow(database, gameId);
+  if (!game)
+    throw new DurableGameError(
+      404,
+      "GAME_NOT_FOUND",
+      "That game does not exist.",
+    );
+  const color = colorFor(game, guest.id);
+  if (!color)
+    throw new DurableGameError(
+      403,
+      "NOT_A_PLAYER",
+      "This guest is not a player in that game.",
+    );
+  return { game, color };
+}
+
+export async function reconnectTokenResponse(
+  request: Request,
+  body: unknown,
+): Promise<Response> {
+  const guest = await requireGuest(request);
+  const gameId =
+    body &&
+    typeof body === "object" &&
+    typeof (body as { gameId?: unknown }).gameId === "string"
+      ? (body as { gameId: string }).gameId
+      : "";
+  if (!gameId)
+    throw new DurableGameError(
+      400,
+      "INVALID_GAME_ID",
+      "A game id is required.",
+    );
+  const database = db();
+  await requireGameMembership(database, guest, gameId);
+  const token = randomToken();
+  const hash = await sha256(token);
+  await database
+    .prepare(
+      `INSERT INTO game_connections(game_id, player_id, reconnect_token_hash, connected, last_seen_at, grace_ends_at)
+       VALUES (?, ?, ?, 1, ?, NULL)
+       ON CONFLICT(game_id, player_id) DO UPDATE SET reconnect_token_hash = excluded.reconnect_token_hash,
+         connected = 1, last_seen_at = excluded.last_seen_at, grace_ends_at = NULL`,
+    )
+    .bind(gameId, guest.id, hash, Date.now())
+    .run();
+  return Response.json({ reconnectToken: token });
+}
+
+export async function reconnectResponse(
+  request: Request,
+  body: unknown,
+): Promise<Response> {
+  const guest = await requireGuest(request);
+  const value =
+    body && typeof body === "object"
+      ? (body as { gameId?: unknown; token?: unknown })
+      : {};
+  if (typeof value.gameId !== "string" || typeof value.token !== "string") {
+    throw new DurableGameError(
+      400,
+      "INVALID_RECONNECT",
+      "A game id and reconnect token are required.",
+    );
+  }
+  const database = db();
+  const { game } = await requireGameMembership(database, guest, value.gameId);
+  const oldHash = await sha256(value.token);
+  const connection = await database
+    .prepare(
+      `SELECT reconnect_token_hash FROM game_connections
+       WHERE game_id = ? AND player_id = ? AND reconnect_token_hash = ?`,
+    )
+    .bind(value.gameId, guest.id, oldHash)
+    .first<{ reconnect_token_hash: string }>();
+  if (!connection)
+    throw new DurableGameError(
+      401,
+      "INVALID_RECONNECT_TOKEN",
+      "That reconnect token is invalid.",
+    );
+  const token = randomToken();
+  const newHash = await sha256(token);
+  await database
+    .prepare(
+      `UPDATE game_connections SET reconnect_token_hash = ?, connected = 1,
+         last_seen_at = ?, grace_ends_at = NULL
+       WHERE game_id = ? AND player_id = ? AND reconnect_token_hash = ?`,
+    )
+    .bind(newHash, Date.now(), value.gameId, guest.id, oldHash)
+    .run();
+  const opponentId =
+    game.red_player_id === guest.id ? game.black_player_id : game.red_player_id;
+  await eventStatement(database, opponentId, game.id, {
+    type: "opponentReconnected",
+    gameId: game.id,
+  }).run();
+  return Response.json({
+    snapshot: await snapshot(database, game.id),
+    reconnectToken: token,
+  });
+}
+
+export async function disconnectResponse(
+  request: Request,
+  body: unknown,
+): Promise<Response> {
+  const guest = await requireGuest(request);
+  const gameId =
+    body &&
+    typeof body === "object" &&
+    typeof (body as { gameId?: unknown }).gameId === "string"
+      ? (body as { gameId: string }).gameId
+      : "";
+  if (!gameId)
+    throw new DurableGameError(
+      400,
+      "INVALID_GAME_ID",
+      "A game id is required.",
+    );
+  const database = db();
+  const { game } = await requireGameMembership(database, guest, gameId);
+  const graceEndsAt = Date.now() + RECONNECT_GRACE_MS;
+  await database
+    .prepare(
+      `UPDATE game_connections SET connected = 0, last_seen_at = ?, grace_ends_at = ?
+       WHERE game_id = ? AND player_id = ?`,
+    )
+    .bind(Date.now(), graceEndsAt, gameId, guest.id)
+    .run();
+  const opponentId =
+    game.red_player_id === guest.id ? game.black_player_id : game.red_player_id;
+  await eventStatement(database, opponentId, game.id, {
+    type: "opponentDisconnected",
+    gameId,
+    graceEndsAt,
+  }).run();
+  return new Response(null, { status: 204 });
+}
+
+async function pendingEvents(
+  database: D1,
+  playerId: string,
+  gameId: string | null,
+): Promise<Array<{ id: string; event: ServerEvent }>> {
+  const result = gameId
+    ? await database
+        .prepare(
+          `SELECT id, payload FROM durable_player_events
+           WHERE player_id = ? AND delivered_at IS NULL AND (game_id = ? OR game_id IS NULL)
+           ORDER BY created_at_ms ASC LIMIT 20`,
+        )
+        .bind(playerId, gameId)
+        .all<{ id: string; payload: string }>()
+    : await database
+        .prepare(
+          `SELECT id, payload FROM durable_player_events
+           WHERE player_id = ? AND delivered_at IS NULL
+           ORDER BY created_at_ms ASC LIMIT 20`,
+        )
+        .bind(playerId)
+        .all<{ id: string; payload: string }>();
+  return (result.results ?? []).map((row) => ({
+    id: row.id,
+    event: JSON.parse(row.payload) as ServerEvent,
+  }));
+}
+
+function sleep(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+export async function eventStreamResponse(request: Request): Promise<Response> {
+  const guest = await requireGuest(request);
+  const database = db();
+  const candidateGameId = new URL(request.url).searchParams.get("gameId");
+  const gameId = candidateGameId || null;
+  if (gameId) await requireGameMembership(database, guest, gameId);
+  const encoder = new TextEncoder();
+  let cancelled = false;
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const startedAt = Date.now();
+      let lastClockAt = 0;
+      controller.enqueue(encoder.encode(": xiangqi-arena\n\n"));
+      try {
+        while (!cancelled && Date.now() - startedAt < EVENT_STREAM_WINDOW_MS) {
+          const queued = await pendingEvents(database, guest.id, gameId);
+          if (queued.length) {
+            for (const item of queued) {
+              controller.enqueue(
+                encoder.encode(
+                  `id: ${item.id}\ndata: ${JSON.stringify(item.event)}\n\n`,
+                ),
+              );
+            }
+            await database.batch(
+              queued.map((item) =>
+                database
+                  .prepare(
+                    "UPDATE durable_player_events SET delivered_at = ? WHERE id = ? AND delivered_at IS NULL",
+                  )
+                  .bind(Date.now(), item.id),
+              ),
+            );
+          }
+          if (gameId && Date.now() - lastClockAt >= 5_000) {
+            const state = await snapshot(database, gameId);
+            const clockEvent: ServerEvent =
+              state.status === "completed"
+                ? { type: "gameEnded", snapshot: state }
+                : { type: "clockSync", gameId, clock: state.clock };
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify(clockEvent)}\n\n`),
+            );
+            lastClockAt = Date.now();
+          } else if (!queued.length) {
+            controller.enqueue(encoder.encode(": keepalive\n\n"));
+          }
+          await sleep(EVENT_POLL_MS);
+        }
+      } catch {
+        if (!cancelled) {
+          const event: ServerEvent = {
+            type: "protocolError",
+            code: "STREAM_INTERRUPTED",
+            message:
+              "Live updates paused; reconnecting to the authoritative state.",
+          };
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify(event)}\n\n`),
+          );
+        }
+      } finally {
+        if (!cancelled) controller.close();
+      }
+    },
+    cancel() {
+      cancelled = true;
+    },
+  });
+  return new Response(stream, {
+    headers: {
+      "content-type": "text/event-stream; charset=utf-8",
+      "cache-control": "no-cache, no-transform",
+      connection: "keep-alive",
+      "x-accel-buffering": "no",
+    },
+  });
+}
+
+export function errorResponse(error: unknown): Response {
+  if (error instanceof DurableGameError) {
+    return Response.json(
+      { error: { code: error.code, message: error.message } },
+      { status: error.status, headers: { "cache-control": "no-store" } },
+    );
+  }
+  console.error("durable game route failed", error);
+  return Response.json(
+    {
+      error: {
+        code: "INTERNAL_ERROR",
+        message:
+          "The authoritative game service could not complete that request.",
+      },
+    },
+    { status: 500, headers: { "cache-control": "no-store" } },
+  );
 }

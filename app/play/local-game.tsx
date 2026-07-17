@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   applyMove,
+  choosePracticeMove,
   createInitialPosition,
   explainMove,
   formatMove,
@@ -25,7 +26,13 @@ type HistoryItem = {
 };
 type Dialog = "resign" | "draw" | null;
 
-export function LocalGame({ onExit }: { onExit?: () => void }) {
+export function LocalGame({
+  onExit,
+  solo = false,
+}: {
+  onExit?: () => void;
+  solo?: boolean;
+}) {
   const [position, setPosition] = useState(() => createInitialPosition());
   const [positionHistory, setPositionHistory] = useState<Position[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -39,6 +46,8 @@ export function LocalGame({ onExit }: { onExit?: () => void }) {
   const [manualResult, setManualResult] = useState<string | null>(null);
   const [guideEnabled, setGuideEnabled] = useState(true);
   const [moveFeedback, setMoveFeedback] = useState<string | null>(null);
+  const [coachNote, setCoachNote] = useState<string | null>(null);
+  const [hintMove, setHintMove] = useState<Move | null>(null);
   const [announcement, setAnnouncement] = useState(
     "Red to move. Select a piece.",
   );
@@ -46,6 +55,19 @@ export function LocalGame({ onExit }: { onExit?: () => void }) {
   const legalMoves = selected ? generateLegalMoves(position, selected) : [];
   const status = manualResult ? null : getGameStatus(position, positionHistory);
   const terminal = !!manualResult || status?.isTerminal;
+  const aiThinking = solo && position.turn === "black" && !terminal;
+  const inputDisabled = terminal || aiThinking;
+
+  useEffect(() => {
+    if (!solo || position.turn !== "black" || terminal) return;
+    const timer = window.setTimeout(() => {
+      const reply = choosePracticeMove(position, history.length);
+      if (reply) makeMove(reply);
+    }, 520);
+    return () => window.clearTimeout(timer);
+    // The move application intentionally uses the position captured for this turn.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [history.length, position, solo, terminal]);
 
   useEffect(() => {
     if (!dialog) return;
@@ -68,6 +90,8 @@ export function LocalGame({ onExit }: { onExit?: () => void }) {
     if (piece?.color === position.turn) {
       setSelected(square);
       setMoveFeedback(null);
+      setCoachNote(null);
+      setHintMove(null);
       setAnnouncement(
         `${piece.color} ${piece.type} on ${squareName(square)} selected. ${generateLegalMoves(position, square).length} legal destinations.`,
       );
@@ -115,6 +139,8 @@ export function LocalGame({ onExit }: { onExit?: () => void }) {
     setLastMove(move);
     setSelected(null);
     setMoveFeedback(null);
+    setCoachNote(null);
+    setHintMove(null);
     setAnnouncement(
       `${piece?.color} ${piece?.type} moved ${label}.${captured ? ` Captured ${captured.color} ${captured.type}.` : ""}${check ? ` ${next.turn} is in check.` : ` ${next.turn} to move.`}`,
     );
@@ -127,8 +153,50 @@ export function LocalGame({ onExit }: { onExit?: () => void }) {
     setLastMove(null);
     setManualResult(null);
     setMoveFeedback(null);
+    setCoachNote(null);
+    setHintMove(null);
     setAnnouncement("New game. Red to move.");
     setDialog(null);
+  }
+  function undoMove() {
+    if (!history.length || aiThinking) return;
+    const removeCount = solo ? Math.min(2, history.length) : 1;
+    const remaining = history.slice(0, history.length - removeCount);
+    const restored = remaining.length
+      ? remaining[remaining.length - 1].position
+      : createInitialPosition();
+    setPosition(restored);
+    setHistory(remaining);
+    setPositionHistory(
+      positionHistory.slice(
+        0,
+        Math.max(0, positionHistory.length - removeCount),
+      ),
+    );
+    setLastMove(remaining.length ? remaining[remaining.length - 1].move : null);
+    setSelected(null);
+    setManualResult(null);
+    setMoveFeedback(null);
+    setHintMove(null);
+    setCoachNote(
+      solo
+        ? "Position restored to your previous turn. Try a different plan."
+        : "The last move was undone.",
+    );
+    setAnnouncement("Move undone. Red to move.");
+  }
+  function showCoachHint() {
+    if (terminal || aiThinking || (solo && position.turn !== "red")) return;
+    const suggestion = choosePracticeMove(position, history.length);
+    if (!suggestion) return;
+    setSelected(suggestion.from);
+    setHintMove(suggestion);
+    setCoachNote(
+      `Try ${squareName(suggestion.from)} → ${squareName(suggestion.to)}. The gold rings mark the suggested move; you can still choose any legal move.`,
+    );
+    setAnnouncement(
+      `Coach hint: move from ${squareName(suggestion.from)} to ${squareName(suggestion.to)}.`,
+    );
   }
   const capturedByRed = history
     .filter((item) => item.captured && item.position.turn === "black")
@@ -141,7 +209,14 @@ export function LocalGame({ onExit }: { onExit?: () => void }) {
     (status?.isTerminal
       ? `${status.winner === "red" ? "Red" : "Black"} wins by ${status.terminationReason}.`
       : `${position.turn === "red" ? "Red" : "Black"} to move${status?.inCheck ? " · Check" : ""}`);
-  const guide = getFirstGameGuide(position, selected, history.length);
+  const guide = getFirstGameGuide(
+    position,
+    selected,
+    history.length,
+    Boolean(status?.inCheck),
+    aiThinking,
+    solo,
+  );
 
   return (
     <div className="local-game">
@@ -152,7 +227,9 @@ export function LocalGame({ onExit }: { onExit?: () => void }) {
               ← Lobby
             </button>
           )}
-          <span className="status-chip">LOCAL · CASUAL</span>
+          <span className="status-chip">
+            {solo ? "GUIDED · VS COACH" : "LOCAL · CASUAL"}
+          </span>
         </div>
         <div className="game-toolbar">
           <button
@@ -212,6 +289,7 @@ export function LocalGame({ onExit }: { onExit?: () => void }) {
         <aside className="player-column">
           <PlayerCard
             color="black"
+            name={solo ? "Coach bot" : "Player two"}
             turn={position.turn === "black" && !terminal}
             captured={capturedByRed}
           />
@@ -233,6 +311,7 @@ export function LocalGame({ onExit }: { onExit?: () => void }) {
           </div>
           <PlayerCard
             color="red"
+            name={solo ? "You" : "Player one"}
             turn={position.turn === "red" && !terminal}
             captured={capturedByBlack}
           />
@@ -240,10 +319,12 @@ export function LocalGame({ onExit }: { onExit?: () => void }) {
         <div>
           {guideEnabled && !terminal && (
             <section className="first-game-guide" aria-live="polite">
-              <span>{Math.min(history.length + 1, 4)} / 4</span>
+              <span>
+                {solo ? "LIVE" : `${Math.min(history.length + 1, 4)} / 4`}
+              </span>
               <div>
                 <b>{guide.title}</b>
-                <p>{guide.copy}</p>
+                <p>{coachNote ?? guide.copy}</p>
               </div>
               <button
                 type="button"
@@ -257,11 +338,40 @@ export function LocalGame({ onExit }: { onExit?: () => void }) {
           <div className={`turn-banner${status?.inCheck ? " in-check" : ""}`}>
             <b>{statusText}</b>
             <span>
-              {selected
-                ? `${squareName(selected)} selected · choose a green destination`
-                : "Select a piece, then a highlighted destination"}
+              {aiThinking
+                ? "Coach is choosing a reply…"
+                : selected
+                  ? `${squareName(selected)} selected · choose a green destination`
+                  : "Select a piece, then a highlighted destination"}
             </span>
           </div>
+          {solo && !terminal && (
+            <div className="coach-strip" aria-live="polite">
+              <div>
+                <b>
+                  {aiThinking ? "Coach is choosing a reply…" : "Board coach"}
+                </b>
+                <p>
+                  {coachNote ??
+                    "Ask for a suggested move or undo the last pair of moves and try another plan."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={showCoachHint}
+                disabled={aiThinking || position.turn !== "red"}
+              >
+                Show a move
+              </button>
+              <button
+                type="button"
+                onClick={undoMove}
+                disabled={!history.length || aiThinking}
+              >
+                Undo turn
+              </button>
+            </div>
+          )}
           {moveFeedback && (
             <div className="move-feedback" role="alert">
               <span aria-hidden="true">!</span>
@@ -288,7 +398,8 @@ export function LocalGame({ onExit }: { onExit?: () => void }) {
             onSelect={chooseSquare}
             onMove={makeMove}
             onReject={rejectMove}
-            disabled={terminal}
+            hintSquares={hintMove ? [hintMove.from, hintMove.to] : []}
+            disabled={inputDisabled}
           />
           {terminal && (
             <div className="game-result" role="status">
@@ -326,10 +437,11 @@ export function LocalGame({ onExit }: { onExit?: () => void }) {
             )}
           </ol>
           <div className="practice-note">
-            <b>Local practice</b>
+            <b>{solo ? "Solo coached practice" : "Local practice"}</b>
             <p>
-              This board uses the production rules engine. Hosted clocks and
-              multiplayer state stay server-authoritative when connected.
+              {solo
+                ? "You play Red. The coach replies as Black, while Undo, Hint, and move explanations stay available throughout the game."
+                : "This board uses the production rules engine. Hosted clocks and multiplayer state stay server-authoritative when connected."}
             </p>
           </div>
         </aside>
@@ -397,18 +509,39 @@ function getFirstGameGuide(
   position: Position,
   selected: Square | null,
   moveCount: number,
+  inCheck = false,
+  aiThinking = false,
+  solo = false,
 ) {
+  if (aiThinking) {
+    return {
+      title: "Coach is reading the board",
+      copy: "Black will reply automatically. Your controls unlock when the move is complete.",
+    };
+  }
+  if (inCheck) {
+    return {
+      title: "Your General is in check",
+      copy: "Only moves that remove the check are legal. Use the green destinations to find a safe reply.",
+    };
+  }
+  if (selected) {
+    const piece = getPiece(position, selected);
+    const moves = generateLegalMoves(position, selected);
+    const captures = moves.filter((move) => getPiece(position, move.to)).length;
+    return {
+      title: `${piece ? `${piece.type[0].toUpperCase()}${piece.type.slice(1)}` : "Piece"} on ${squareName(selected)}`,
+      copy: captures
+        ? `${moves.length} legal destinations are marked; ${captures} captures are outlined. Choose one or ask for a hint.`
+        : `${moves.length} legal destinations are marked. Look for a move that develops toward the open files without exposing your General.`,
+    };
+  }
   if (moveCount === 0 && !selected) {
     return {
       title: "Start with a Soldier",
-      copy: "Red moves first. Select any S piece; green dots show every legal destination.",
-    };
-  }
-  if (moveCount === 0) {
-    const piece = selected ? getPiece(position, selected) : null;
-    return {
-      title: `${piece ? `${piece.type[0].toUpperCase()}${piece.type.slice(1)}` : "Piece"} selected`,
-      copy: "Choose a green dot. A ring around an enemy piece means it can be captured.",
+      copy: solo
+        ? "You play Red. Select any S piece; green dots show every legal destination, then the coach replies as Black."
+        : "Red moves first. Select any S piece; green dots show every legal destination.",
     };
   }
   if (moveCount === 1) {
@@ -484,10 +617,12 @@ function PostGameInsights({ history }: { history: HistoryItem[] }) {
 
 function PlayerCard({
   color,
+  name,
   turn,
   captured,
 }: {
   color: "red" | "black";
+  name: string;
   turn: boolean;
   captured: string[];
 }) {
@@ -501,8 +636,10 @@ function PlayerCard({
       </div>
       <div>
         <small>{color.toUpperCase()}</small>
-        <h3>{color === "red" ? "Player one" : "Player two"}</h3>
-        <p>{turn ? "Your turn" : "Waiting"}</p>
+        <h3>{name}</h3>
+        <p>
+          {turn ? (name === "Coach bot" ? "Thinking" : "Your turn") : "Waiting"}
+        </p>
       </div>
       <span className="practice-clock">∞</span>
       <div className="captured-row">

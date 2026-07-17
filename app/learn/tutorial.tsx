@@ -113,7 +113,7 @@ const lessons: readonly BoardLesson[] = [
         id: "advisor-palace",
         kind: "move",
         prompt:
-          "Try d0 → c1, then keep the Advisor in the palace with d0 → e1.",
+          "Move the Advisor from d0 → e1. You may test d0 → c1 to see the palace boundary.",
         position: createPosition([
           { color: "black", type: "general", column: 4, row: 0 },
           { color: "red", type: "rook", column: 4, row: 4 },
@@ -151,7 +151,8 @@ const lessons: readonly BoardLesson[] = [
       {
         id: "elephant-eye",
         kind: "move",
-        prompt: "Try c0 → e2 to reveal the block, then play c0 → a2.",
+        prompt:
+          "Move the Elephant from c0 → a2. You may test c0 → e2 to inspect the blocked eye.",
         position: createPosition([
           { color: "black", type: "general", column: 4, row: 0 },
           { color: "red", type: "soldier", column: 3, row: 8 },
@@ -189,7 +190,8 @@ const lessons: readonly BoardLesson[] = [
       {
         id: "horse-leg",
         kind: "move",
-        prompt: "Try e4 → f6, then find the legal move e4 → g5.",
+        prompt:
+          "Move the Horse from e4 → g5. You may test e4 → f6 to inspect the blocked leg.",
         position: createPosition([
           { color: "black", type: "general", column: 4, row: 0 },
           { color: "red", type: "soldier", column: 4, row: 4 },
@@ -225,7 +227,8 @@ const lessons: readonly BoardLesson[] = [
       {
         id: "rook-line",
         kind: "move",
-        prompt: "Try a0 → a3, then stop on the open intersection a1.",
+        prompt:
+          "Move the Rook from a0 → a1. You may test a0 → a3 to inspect the blocked line.",
         position: createPosition([
           { color: "black", type: "general", column: 4, row: 0 },
           { color: "red", type: "soldier", column: 0, row: 7 },
@@ -296,7 +299,8 @@ const lessons: readonly BoardLesson[] = [
       {
         id: "soldier-river",
         kind: "move",
-        prompt: "Try the backward move e5 → e4, then move sideways e5 → f5.",
+        prompt:
+          "Move the Soldier sideways from e5 → f5. You may test e5 → e4 to confirm it cannot retreat.",
         position: createPosition([
           { color: "black", type: "general", column: 4, row: 0 },
           { color: "red", type: "soldier", column: 4, row: 4 },
@@ -332,7 +336,8 @@ const lessons: readonly BoardLesson[] = [
       {
         id: "flying-generals",
         kind: "move",
-        prompt: "Try e5 → d5 to reveal the rule, then play e5 → e4.",
+        prompt:
+          "Keep the Generals separated with e5 → e4. You may test e5 → d5 to reveal the open-file rule.",
         position: createPosition([
           { color: "black", type: "general", column: 4, row: 0 },
           { color: "red", type: "rook", column: 4, row: 4 },
@@ -444,38 +449,37 @@ const lessons: readonly BoardLesson[] = [
   },
 ];
 
-const assessmentQuestions = [
+const assessmentChallenges: readonly LessonChallenge[] = [
   {
-    prompt: "How many screens must a Cannon jump to capture?",
-    options: ["None", "Exactly one", "Any number"],
-    answer: "Exactly one",
-  },
-  {
+    ...(lessons[2].challenges[0] as MoveChallenge),
+    id: "check-elephant",
     prompt:
-      "What can stop a Horse from reaching an otherwise correct L-shaped destination?",
-    options: [
-      "A blocked first straight step",
-      "The river",
-      "Leaving the palace",
-    ],
-    answer: "A blocked first straight step",
+      "Practical 1: move the Elephant from c0 to the open destination a2.",
   },
   {
-    prompt: "Which piece can never cross the river?",
-    options: ["Rook", "Cannon", "Elephant"],
-    answer: "Elephant",
+    ...(lessons[3].challenges[0] as MoveChallenge),
+    id: "check-horse",
+    prompt:
+      "Practical 2: move the Horse from e4 to the unblocked destination g5.",
   },
   {
-    prompt: "What happens when a player has no legal move but is not in check?",
-    options: ["The player loses", "The game is drawn", "The turn is skipped"],
-    answer: "The player loses",
+    ...(lessons[5].challenges[0] as MoveChallenge),
+    id: "check-cannon",
+    prompt: "Practical 3: use the single screen to capture the Rook on b8.",
   },
   {
-    prompt: "Can the two Generals face each other on an open file?",
-    options: ["Yes, at any distance", "Only across the river", "No"],
-    answer: "No",
+    ...(lessons[6].challenges[0] as MoveChallenge),
+    id: "check-soldier",
+    prompt:
+      "Practical 4: use the crossed-river Soldier’s sideways move to reach f5.",
   },
-] as const;
+  {
+    ...(lessons[8].challenges[1] as ChoiceChallenge),
+    id: "check-stalemate",
+    prompt:
+      "Practical 5: identify the result when Black has no legal move and is not in check.",
+  },
+];
 
 function trackLearningEvent(
   event: string,
@@ -504,6 +508,7 @@ export function LearnLesson() {
   const [assessmentPassed, setAssessmentPassed] = useState(false);
   const [bestScore, setBestScore] = useState(0);
   const [hydrated, setHydrated] = useState(false);
+  const [placementOpen, setPlacementOpen] = useState(false);
   const tabs = useRef<Array<HTMLButtonElement | null>>([]);
   const showingAssessment = index === lessons.length;
   const lesson = showingAssessment ? null : lessons[index];
@@ -586,7 +591,19 @@ export function LearnLesson() {
 
   function chooseExperience(mode: ExperienceMode) {
     setExperience(mode);
+    if (mode === "beginner") setPlacementOpen(false);
     trackLearningEvent("learning_path_selected", { mode });
+  }
+
+  function handlePlacement(score: number) {
+    trackLearningEvent("placement_completed", { score });
+    if (score < 80) return;
+    setCompleted(new Set(lessons.map((item) => item.id)));
+    setAssessmentPassed(true);
+    setBestScore((current) => Math.max(current, score));
+    setPlacementOpen(false);
+    setIndex(lessons.length);
+    trackLearningEvent("fast_track_unlocked", { score });
   }
 
   function handleAssessment(score: number) {
@@ -610,7 +627,8 @@ export function LearnLesson() {
           <p className="eyebrow">CHOOSE YOUR ROUTE</p>
           <h2 id="learning-path-title">Start from what you already know.</h2>
           <p>
-            The exercises stay the same; explanations adapt to your experience.
+            Beginners get the full guided course. Chess players can prove the
+            essentials in a five-position fast track.
           </p>
         </div>
         <div
@@ -639,6 +657,29 @@ export function LearnLesson() {
             <small>Use plain-language movement and safety guidance.</small>
           </button>
         </div>
+        {experience === "chess" && !assessmentPassed && (
+          <button
+            className="placement-trigger"
+            type="button"
+            aria-expanded={placementOpen}
+            aria-controls="placement-check"
+            onClick={() => setPlacementOpen(!placementOpen)}
+          >
+            {placementOpen
+              ? "Close fast track"
+              : "Take the 3-minute placement check →"}
+          </button>
+        )}
+        {placementOpen && experience === "chess" && (
+          <div className="placement-check" id="placement-check">
+            <SkillCheck
+              title="Western-chess fast track"
+              description="Solve four board moves and one ending verdict. Score 80% on the first try to skip directly to the guided game."
+              challenges={assessmentChallenges}
+              onComplete={handlePlacement}
+            />
+          </div>
+        )}
       </section>
 
       <section className="tutorial" aria-labelledby="lesson-title">
@@ -770,8 +811,8 @@ export function LearnLesson() {
               <p className="eyebrow">FINAL CHECK</p>
               <h2 id="lesson-title">Prove you’re ready.</h2>
               <p>
-                Answer five quick questions. Four correct answers unlock the
-                guided first game.
+                Solve five live board positions. Four first-try successes unlock
+                the guided first game.
               </p>
               <div className="lesson-hint">
                 <span aria-hidden="true">◎</span>
@@ -895,7 +936,7 @@ function LessonChallengeRunner({
         key={challenge.id}
         challenge={challenge}
         solved={stepSolved}
-        onSolved={solveStep}
+        onSolved={() => solveStep()}
       />
       {stepSolved && (
         <button
@@ -919,13 +960,12 @@ function ChallengeStep({
 }: {
   challenge: LessonChallenge;
   solved: boolean;
-  onSolved: () => void;
+  onSolved: (attempts: number) => void;
 }) {
   const [position, setPosition] = useState(challenge.position);
   const [selected, setSelected] = useState<Square | null>(null);
   const [lastMove, setLastMove] = useState<Move | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [sawInvalidExample, setSawInvalidExample] = useState(false);
   const [attempts, setAttempts] = useState(0);
   const [showHint, setShowHint] = useState(false);
   const legalMoves = selected ? generateLegalMoves(position, selected) : [];
@@ -945,7 +985,7 @@ function ChallengeStep({
       if (sameSquare(square, challenge.targetSquare)) {
         setSelected(square);
         setFeedback(challenge.success);
-        onSolved();
+        onSolved(attempts);
       } else {
         miss(
           piece
@@ -975,9 +1015,6 @@ function ChallengeStep({
     const candidate = { from, to };
     const explanation = explainMove(position, candidate);
     miss(explanation.message);
-    if (challenge.tryMove && sameMove(candidate, challenge.tryMove)) {
-      setSawInvalidExample(true);
-    }
   }
 
   function playMove(move: Move) {
@@ -988,17 +1025,11 @@ function ChallengeStep({
       );
       return;
     }
-    if (challenge.tryMove && !sawInvalidExample) {
-      miss(
-        `First try the crossed-out example ${squareName(challenge.tryMove.from)} → ${squareName(challenge.tryMove.to)} so you can see why it fails.`,
-      );
-      return;
-    }
     setPosition(applyMove(position, move));
     setLastMove(move);
     setSelected(null);
     setFeedback(challenge.success);
-    onSolved();
+    onSolved(attempts);
   }
 
   function chooseOption(value: string) {
@@ -1006,7 +1037,7 @@ function ChallengeStep({
     const option = challenge.options.find((item) => item.value === value);
     if (!option) return;
     setFeedback(option.feedback);
-    if (option.correct) onSolved();
+    if (option.correct) onSolved(attempts);
     else miss(option.feedback);
   }
 
@@ -1075,6 +1106,109 @@ function ChallengeStep({
   );
 }
 
+function SkillCheck({
+  title,
+  description,
+  challenges,
+  onComplete,
+}: {
+  title: string;
+  description: string;
+  challenges: readonly LessonChallenge[];
+  onComplete: (score: number) => void;
+}) {
+  const [round, setRound] = useState(0);
+  const [stepIndex, setStepIndex] = useState(0);
+  const [stepSolved, setStepSolved] = useState(false);
+  const [firstTryResults, setFirstTryResults] = useState<boolean[]>([]);
+  const [result, setResult] = useState<number | null>(null);
+  const challenge = challenges[stepIndex];
+
+  function solve(attempts: number) {
+    setFirstTryResults((current) => [...current, attempts === 0]);
+    setStepSolved(true);
+  }
+
+  function next() {
+    if (stepIndex < challenges.length - 1) {
+      setStepIndex(stepIndex + 1);
+      setStepSolved(false);
+      return;
+    }
+    const score = Math.round(
+      (firstTryResults.filter(Boolean).length / challenges.length) * 100,
+    );
+    setResult(score);
+    onComplete(score);
+  }
+
+  function retry() {
+    setRound((current) => current + 1);
+    setStepIndex(0);
+    setStepSolved(false);
+    setFirstTryResults([]);
+    setResult(null);
+  }
+
+  if (result !== null) {
+    return (
+      <div
+        className={`skill-check-result${result >= 80 ? " passed" : ""}`}
+        role="status"
+      >
+        <span aria-hidden="true">{result >= 80 ? "✓" : "↻"}</span>
+        <h3>{result}% first-try score</h3>
+        <p>
+          {result >= 80
+            ? "Fast track passed. Your guided game is ready."
+            : "The full course will explain the missed patterns, or you can retry with a fresh board."}
+        </p>
+        {result < 80 && (
+          <button
+            className="button button-primary"
+            type="button"
+            onClick={retry}
+          >
+            Retry the five positions
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="skill-check">
+      <div className="skill-check-head">
+        <div>
+          <p className="eyebrow">LIVE BOARD ASSESSMENT</p>
+          <h3>{title}</h3>
+          <p>{description}</p>
+        </div>
+        <b>
+          {stepIndex + 1} / {challenges.length}
+        </b>
+      </div>
+      <ChallengeStep
+        key={`${round}-${challenge.id}`}
+        challenge={challenge}
+        solved={stepSolved}
+        onSolved={solve}
+      />
+      {stepSolved && (
+        <button
+          className="button button-primary challenge-next"
+          type="button"
+          onClick={next}
+        >
+          {stepIndex === challenges.length - 1
+            ? "See my score →"
+            : "Next position →"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function Assessment({
   locked,
   passed,
@@ -1088,9 +1222,6 @@ function Assessment({
   onScore: (score: number) => void;
   onReview: () => void;
 }) {
-  const [answers, setAnswers] = useState<Record<number, string>>({});
-  const [result, setResult] = useState<number | null>(null);
-
   if (locked) {
     return (
       <div className="assessment assessment-locked">
@@ -1130,87 +1261,14 @@ function Assessment({
     );
   }
 
-  function submitAssessment(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (Object.keys(answers).length !== assessmentQuestions.length) return;
-    const correct = assessmentQuestions.reduce(
-      (total, question, questionIndex) =>
-        total + (answers[questionIndex] === question.answer ? 1 : 0),
-      0,
-    );
-    const score = Math.round((correct / assessmentQuestions.length) * 100);
-    setResult(score);
-    onScore(score);
-  }
-
   return (
-    <form className="assessment" onSubmit={submitAssessment}>
-      {assessmentQuestions.map((question, questionIndex) => (
-        <fieldset key={question.prompt}>
-          <legend>
-            <span>{questionIndex + 1}</span>
-            {question.prompt}
-          </legend>
-          {question.options.map((option) => {
-            const checked = answers[questionIndex] === option;
-            const showMark = result !== null && checked;
-            const correct = option === question.answer;
-            return (
-              <label
-                key={option}
-                className={showMark ? (correct ? "correct" : "incorrect") : ""}
-              >
-                <input
-                  type="radio"
-                  name={`assessment-${questionIndex}`}
-                  value={option}
-                  checked={checked}
-                  disabled={result !== null}
-                  onChange={() =>
-                    setAnswers((current) => ({
-                      ...current,
-                      [questionIndex]: option,
-                    }))
-                  }
-                />
-                <span>{option}</span>
-                {showMark && (
-                  <b>{correct ? "Correct" : `Answer: ${question.answer}`}</b>
-                )}
-              </label>
-            );
-          })}
-        </fieldset>
-      ))}
-      {result !== null && result < 80 && (
-        <div className="assessment-result" role="alert">
-          <b>{result}% · Review and try again</b>
-          <p>
-            Four correct answers are required. The right answer is shown beside
-            each miss.
-          </p>
-        </div>
-      )}
-      {result === null ? (
-        <button
-          className="button button-primary"
-          type="submit"
-          disabled={Object.keys(answers).length !== assessmentQuestions.length}
-        >
-          Check my answers
-        </button>
-      ) : (
-        <button
-          className="button button-primary"
-          type="button"
-          onClick={() => {
-            setAnswers({});
-            setResult(null);
-          }}
-        >
-          Try all five again
-        </button>
-      )}
-    </form>
+    <div className="assessment assessment-practical">
+      <SkillCheck
+        title="Five-position readiness check"
+        description="Make four real moves and identify one ending. Your first attempt on each position determines the score."
+        challenges={assessmentChallenges}
+        onComplete={onScore}
+      />
+    </div>
   );
 }

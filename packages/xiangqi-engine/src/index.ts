@@ -32,3 +32,4 @@ export {
 } from "./status";
 export { formatMove } from "./notation";
 export { explainMove } from "./explain";
+export { choosePracticeMove } from "./practice";

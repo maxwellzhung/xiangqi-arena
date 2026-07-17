@@ -1,8 +1,10 @@
-# Xiangqi Arena — Product Requirements
+# 楚汉 / Han vs Chu — Product Requirements
 
 ## Product promise
 
-Xiangqi Arena is the easiest modern place for Western players to learn and play Xiangqi (Chinese Chess). A first-time visitor can begin a casual game as a guest, learn unfamiliar rules in plain English, and grow into rated play.
+Han vs Chu is the easiest modern place for Western players to learn and play Xiangqi (Chinese Chess). A first-time visitor can begin a casual game as a guest, learn unfamiliar rules in plain English, and grow into rated play.
+
+Brand system: **楚汉** is the master brand, **Han vs Chu** is the English identity and domain name, **Dynasty Chess** is the category descriptor, and **Ancient China Strategy Battle** is the campaign line.
 
 ## Audience and outcomes
 

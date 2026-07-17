@@ -20,17 +20,14 @@ async function render(pathname = "/") {
   );
 }
 
-test("server-renders the Xiangqi Arena product landing page", async () => {
+test("server-renders the Han vs Chu product landing page", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
   const html = await response.text();
-  assert.match(
-    html,
-    /<title>Xiangqi Arena — Play &amp; Learn Chinese Chess<\/title>/i,
-  );
-  assert.match(html, /The fastest way/);
-  assert.match(html, /into.*Xiangqi/);
+  assert.match(html, /<title>Han vs Chu — Dynasty Chess Online<\/title>/i);
+  assert.match(html, /Cross the river/);
+  assert.match(html, /Claim the dynasty/);
   assert.match(html, /No account needed/);
   assert.match(html, /Create private game/);
   assert.match(html, /Learn the rules/);
@@ -48,7 +45,7 @@ test("renders important public routes", async () => {
   for (const [pathname, copy] of [
     ["/play", "Choose how you want to play"],
     ["/learn", "A familiar strategy"],
-    ["/leaderboard", "Arena leaderboard"],
+    ["/leaderboard", "Han vs Chu leaderboard"],
     ["/settings", "Make the board yours"],
     ["/privacy", "Professional review required"],
     ["/terms", "Professional review required"],

@@ -16,7 +16,7 @@ export default async function ReplayPage({
         title="Review the turning points"
         copy="Step through every authoritative position, choose any move from the list, or flip the board to see the opponent’s perspective."
       />
-      <ReplayViewer />
+      <ReplayViewer gameId={id} />
     </AppPage>
   );
 }

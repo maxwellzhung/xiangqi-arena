@@ -75,7 +75,7 @@ export function OnlineGameClient({ roomOrGameId }: { roomOrGameId: string }) {
   );
   const [notice, setNotice] = useState("Connecting to the game service…");
   const [busy, setBusy] = useState(false);
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(0);
   const [opponentAwayUntil, setOpponentAwayUntil] = useState<number | null>(
     null,
   );
@@ -96,6 +96,7 @@ export function OnlineGameClient({ roomOrGameId }: { roomOrGameId: string }) {
       if (inferred) {
         colorRef.current = inferred;
         setColor(inferred);
+        setOrientation(inferred);
         saveActiveGame({
           ...loadActiveGame(),
           gameId: next.gameId,
@@ -113,6 +114,7 @@ export function OnlineGameClient({ roomOrGameId }: { roomOrGameId: string }) {
         case "matchFound":
           colorRef.current = event.color;
           setColor(event.color);
+          setOrientation(event.color);
           saveActiveGame({ gameId: event.gameId, color: event.color });
           if (roomOrGameId !== event.gameId)
             router.replace(`/game/${event.gameId}`);
@@ -160,11 +162,6 @@ export function OnlineGameClient({ roomOrGameId }: { roomOrGameId: string }) {
   useEffect(() => {
     snapshotRef.current = snapshot;
   }, [snapshot]);
-
-  useEffect(() => {
-    colorRef.current = color;
-    if (color) setOrientation(color);
-  }, [color]);
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now()), 250);
@@ -233,6 +230,7 @@ export function OnlineGameClient({ roomOrGameId }: { roomOrGameId: string }) {
         }
         colorRef.current = knownColor;
         setColor(knownColor);
+        setOrientation(knownColor);
         stopStream = client.listen(handleEvent, setStreamStatus, roomOrGameId);
 
         const stored = loadActiveGame();
@@ -286,8 +284,11 @@ export function OnlineGameClient({ roomOrGameId }: { roomOrGameId: string }) {
     };
   }, [handleEvent, roomOrGameId, router, updateSnapshot]);
 
+  const snapshotGameId = snapshot?.gameId;
+  const snapshotStatus = snapshot?.status;
   useEffect(() => {
-    if (!snapshot || snapshot.status !== "active" || !clientRef.current) return;
+    if (!snapshotGameId || snapshotStatus !== "active" || !clientRef.current)
+      return;
     const interval = window.setInterval(() => {
       const latest = snapshotRef.current;
       if (!latest) return;
@@ -302,7 +303,7 @@ export function OnlineGameClient({ roomOrGameId }: { roomOrGameId: string }) {
         .catch(() => setNotice("Restoring authoritative game state…"));
     }, 10_000);
     return () => window.clearInterval(interval);
-  }, [handleEvent, snapshot?.gameId, snapshot?.status]);
+  }, [handleEvent, snapshotGameId, snapshotStatus]);
 
   async function send(command: ClientCommand) {
     const client = clientRef.current;
@@ -568,7 +569,16 @@ export function OnlineGameClient({ roomOrGameId }: { roomOrGameId: string }) {
             <div className="game-result" role="status">
               <p className="eyebrow">GAME OVER</p>
               <h2>{resultText(snapshot, color)}</h2>
-              <p>Use the rematch controls beside the board to play again.</p>
+              <p>
+                Review every saved move now, or use the rematch controls beside
+                the board to play again.
+              </p>
+              <Link
+                className="button button-secondary"
+                href={`/replay/${snapshot.gameId}`}
+              >
+                Review this game
+              </Link>
             </div>
           )}
         </div>

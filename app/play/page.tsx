@@ -24,7 +24,7 @@ export default async function PlayPage({
         titleKey={guided ? "intro.play.guidedTitle" : "intro.play.title"}
         copyKey={guided ? "intro.play.guidedCopy" : "intro.play.copy"}
       />
-      <PlayLobby initialMode={guided ? "local" : "lobby"} />
+      <PlayLobby initialMode={guided ? "local" : "lobby"} guided={guided} />
     </AppPage>
   );
 }

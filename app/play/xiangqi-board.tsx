@@ -62,6 +62,7 @@ export function XiangqiBoard({
   disabled?: boolean;
 }) {
   const instructionsId = useId();
+  const afterBoardId = useId();
   const cellRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const defaultFocusIndex = position.turn === "red" ? 85 : 4;
   const [focusIndex, setFocusIndex] = useState(defaultFocusIndex);
@@ -127,15 +128,25 @@ export function XiangqiBoard({
   const rankLabels = Array.from({ length: 10 }, (_, index) =>
     orientation === "red" ? 9 - index : index,
   );
+  const occupiedCount = squares.filter((square) =>
+    getPiece(position, square),
+  ).length;
   return (
-    <div className={`game-board-frame orientation-${orientation}`}>
+    <div
+      className={`game-board-frame orientation-${orientation} piece-mode-${styleMode}`}
+    >
       <div className="board-label board-label-top">
         {orientation === "red" ? "BLACK" : "RED"}
       </div>
       <p className="sr-only" id={instructionsId}>
         Use the arrow keys to move between intersections. Press Enter or Space
-        to select a piece, then choose a highlighted legal destination.
+        to select a piece, then choose a highlighted legal destination. The
+        board contains {occupiedCount} pieces and {legalMoves.length} marked
+        legal destinations.
       </p>
+      <a className="skip-board-link" href={`#${afterBoardId}`}>
+        Skip the 90-intersection board
+      </a>
       <div className="game-board-area">
         <div className="board-files" aria-hidden="true">
           {fileLabels.map((label, index) => (
@@ -150,6 +161,8 @@ export function XiangqiBoard({
         <div
           className="game-board"
           role="grid"
+          aria-rowcount={10}
+          aria-colcount={9}
           aria-describedby={instructionsId}
           aria-label={`Xiangqi board, ${position.turn} to move${currentInCheck ? ", in check" : ""}`}
         >
@@ -186,6 +199,13 @@ export function XiangqiBoard({
                 }}
                 type="button"
                 role="gridcell"
+                aria-rowindex={
+                  orientation === "red" ? square.row + 1 : 10 - square.row
+                }
+                aria-colindex={
+                  orientation === "red" ? square.column + 1 : 9 - square.column
+                }
+                aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Home End Enter Space"
                 className={`board-point${piece ? ` occupied ${piece.color}` : ""}${selectedNow ? " selected" : ""}${destination ? " legal" : ""}${last ? " last-move" : ""}${hinted ? " hinted" : ""}`}
                 style={{
                   left: `${(square.column / 8) * 100}%`,
@@ -220,6 +240,9 @@ export function XiangqiBoard({
           })}
         </div>
       </div>
+      <span className="sr-only" id={afterBoardId} tabIndex={-1}>
+        End of Xiangqi board.
+      </span>
       <div className="board-label board-label-bottom">
         {orientation === "red" ? "RED · YOU" : "BLACK · YOU"}
       </div>

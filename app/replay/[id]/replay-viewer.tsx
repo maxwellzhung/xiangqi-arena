@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   applyMove,
   createInitialPosition,
@@ -11,36 +12,78 @@ import {
   type Move,
   type Position,
 } from "@/packages/xiangqi-engine/src";
+import { gameSnapshotSchema, type GameSnapshot } from "@/packages/shared/src";
 import { XiangqiBoard } from "../../play/xiangqi-board";
 
-const demoMoves: Move[] = [
-  { from: { column: 1, row: 7 }, to: { column: 4, row: 7 } },
-  { from: { column: 1, row: 2 }, to: { column: 4, row: 2 } },
-  { from: { column: 7, row: 9 }, to: { column: 6, row: 7 } },
-  { from: { column: 7, row: 0 }, to: { column: 6, row: 2 } },
-  { from: { column: 4, row: 6 }, to: { column: 4, row: 5 } },
-  { from: { column: 4, row: 3 }, to: { column: 4, row: 4 } },
-];
+export function ReplayViewer({ gameId }: { gameId: string }) {
+  const [snapshot, setSnapshot] = useState<GameSnapshot | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [step, setStep] = useState(0);
+  const moves = useMemo<Move[]>(
+    () => snapshot?.moves.map((item) => item.move) ?? [],
+    [snapshot],
+  );
 
-export function ReplayViewer() {
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetch(`/api/v1/games/${encodeURIComponent(gameId)}`, {
+      credentials: "include",
+      headers: { accept: "application/json" },
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          const body = (await response.json().catch(() => null)) as {
+            error?: { message?: string };
+          } | null;
+          throw new Error(
+            body?.error?.message ??
+              "This replay is unavailable for the current guest session.",
+          );
+        }
+        const body = (await response.json()) as { snapshot?: unknown };
+        const parsed = gameSnapshotSchema.safeParse(body.snapshot);
+        if (!parsed.success) {
+          throw new Error("The saved replay did not match the game contract.");
+        }
+        setSnapshot(parsed.data);
+        setStep(parsed.data.moves.length);
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError")
+          return;
+        setLoadError(
+          error instanceof Error
+            ? error.message
+            : "This replay could not be loaded.",
+        );
+      });
+    return () => controller.abort();
+  }, [gameId]);
+
   const positions = useMemo(() => {
     const values: Position[] = [createInitialPosition()];
-    for (const move of demoMoves)
-      values.push(applyMove(values[values.length - 1], move));
+    for (const move of moves) {
+      try {
+        values.push(applyMove(values[values.length - 1], move));
+      } catch {
+        break;
+      }
+    }
     return values;
-  }, []);
+  }, [moves]);
   const labels = useMemo(
     () =>
-      demoMoves.map((move, index) =>
-        formatMove(positions[index], move, "western"),
-      ),
-    [positions],
+      moves
+        .slice(0, positions.length - 1)
+        .map((move, index) => formatMove(positions[index], move, "western")),
+    [moves, positions],
   );
-  const [step, setStep] = useState(positions.length - 1);
   const [orientation, setOrientation] = useState<"red" | "black">("red");
   const [pieceStyle, setPieceStyle] = useState<"western" | "traditional">(
     "western",
   );
+  const currentStep = Math.min(step, positions.length - 1);
   useEffect(() => {
     function navigate(event: KeyboardEvent) {
       const target = event.target as HTMLElement;
@@ -67,15 +110,15 @@ export function ReplayViewer() {
   }, [positions.length]);
 
   const currentInsight = useMemo(() => {
-    if (step === 0) {
+    if (currentStep === 0) {
       return {
         title: "Initial position",
         copy: "Red moves first. Both armies begin mirrored across the river.",
       };
     }
-    const move = demoMoves[step - 1];
-    const before = positions[step - 1];
-    const after = positions[step];
+    const move = moves[currentStep - 1];
+    const before = positions[currentStep - 1];
+    const after = positions[currentStep];
     const piece = getPiece(before, move.from);
     const captured = getPiece(before, move.to);
     const check = isInCheck(after, after.turn);
@@ -88,16 +131,16 @@ export function ReplayViewer() {
         "The Soldier advanced toward the river. It gains sideways movement only after crossing.",
     };
     return {
-      title: `${piece ? `${piece.type[0].toUpperCase()}${piece.type.slice(1)}` : "Piece"} moved ${labels[step - 1]}`,
+      title: `${piece ? `${piece.type[0].toUpperCase()}${piece.type.slice(1)}` : "Piece"} moved ${labels[currentStep - 1]}`,
       copy: `${captured ? `It captured a ${captured.type}. ` : ""}${check ? "The move gives check. " : ""}${piece ? (pieceLesson[piece.type] ?? "Compare the highlighted start and destination intersections.") : ""}`,
     };
-  }, [labels, positions, step]);
+  }, [currentStep, labels, moves, positions]);
 
   const reviewFacts = useMemo(() => {
     let checks = 0;
     let captures = 0;
     for (let index = 1; index < positions.length; index += 1) {
-      if (getPiece(positions[index - 1], demoMoves[index - 1].to)) captures++;
+      if (getPiece(positions[index - 1], moves[index - 1].to)) captures++;
       if (isInCheck(positions[index], positions[index].turn)) checks++;
     }
     return {
@@ -105,7 +148,27 @@ export function ReplayViewer() {
       captures,
       legalReplies: generateLegalMoves(positions[positions.length - 1]).length,
     };
-  }, [positions]);
+  }, [moves, positions]);
+
+  if (!snapshot) {
+    return (
+      <section className="surface replay-load-state" aria-live="polite">
+        <p className="eyebrow">PRIVATE GAME RECORD</p>
+        <h2>{loadError ? "Replay unavailable" : "Loading replay…"}</h2>
+        <p>
+          {loadError ??
+            "Restoring the authoritative move list saved for this game."}
+        </p>
+        {loadError && (
+          <Link className="button button-secondary" href="/profile">
+            View your game history
+          </Link>
+        )}
+      </section>
+    );
+  }
+
+  const replayComplete = positions.length === moves.length + 1;
   return (
     <div className="replay-layout">
       <div>
@@ -137,8 +200,8 @@ export function ReplayViewer() {
           </div>
         </section>
         <XiangqiBoard
-          position={positions[step]}
-          lastMove={step ? demoMoves[step - 1] : null}
+          position={positions[currentStep]}
+          lastMove={currentStep ? moves[currentStep - 1] : null}
           orientation={orientation}
           styleMode={pieceStyle}
           disabled
@@ -147,26 +210,28 @@ export function ReplayViewer() {
           <button
             type="button"
             onClick={() => setStep(0)}
-            disabled={step === 0}
+            disabled={currentStep === 0}
             aria-label="First position"
           >
             ↤
           </button>
           <button
             type="button"
-            onClick={() => setStep(Math.max(0, step - 1))}
-            disabled={step === 0}
+            onClick={() => setStep(Math.max(0, currentStep - 1))}
+            disabled={currentStep === 0}
             aria-label="Previous move"
           >
             ←
           </button>
           <span>
-            Position {step} of {demoMoves.length}
+            Position {currentStep} of {moves.length}
           </span>
           <button
             type="button"
-            onClick={() => setStep(Math.min(positions.length - 1, step + 1))}
-            disabled={step === positions.length - 1}
+            onClick={() =>
+              setStep(Math.min(positions.length - 1, currentStep + 1))
+            }
+            disabled={currentStep === positions.length - 1}
             aria-label="Next move"
           >
             →
@@ -174,7 +239,7 @@ export function ReplayViewer() {
           <button
             type="button"
             onClick={() => setStep(positions.length - 1)}
-            disabled={step === positions.length - 1}
+            disabled={currentStep === positions.length - 1}
             aria-label="Final position"
           >
             ↦
@@ -184,8 +249,8 @@ export function ReplayViewer() {
             <input
               type="range"
               min="0"
-              max={demoMoves.length}
-              value={step}
+              max={positions.length - 1}
+              value={currentStep}
               onChange={(event) => setStep(Number(event.target.value))}
             />
           </label>
@@ -198,11 +263,11 @@ export function ReplayViewer() {
         <div className="move-panel-head">
           <span>REPLAY MOVES</span>
           <b>
-            {step} / {demoMoves.length}
+            {currentStep} / {moves.length}
           </b>
         </div>
         <ol>
-          <li className={step === 0 ? "active" : ""}>
+          <li className={currentStep === 0 ? "active" : ""}>
             <button type="button" onClick={() => setStep(0)}>
               <span>0</span>
               <b>Initial position</b>
@@ -211,7 +276,7 @@ export function ReplayViewer() {
           {labels.map((label, index) => (
             <li
               key={`${label}-${index}`}
-              className={step === index + 1 ? "active" : ""}
+              className={currentStep === index + 1 ? "active" : ""}
             >
               <button type="button" onClick={() => setStep(index + 1)}>
                 <span>{index + 1}</span>
@@ -223,8 +288,11 @@ export function ReplayViewer() {
         <div className="practice-note">
           <b>Position record</b>
           <p>
-            Production replays use the exact position saved after each accepted
-            server move.
+            This replay uses the exact authoritative move list saved for your
+            game.{" "}
+            {replayComplete
+              ? "Every move verified."
+              : "A saved move could not be reconstructed."}
           </p>
         </div>
         <div className="replay-facts" aria-label="Replay summary">
@@ -232,7 +300,7 @@ export function ReplayViewer() {
           <dl>
             <div>
               <dt>Moves</dt>
-              <dd>{demoMoves.length}</dd>
+              <dd>{moves.length}</dd>
             </div>
             <div>
               <dt>Captures</dt>
@@ -248,13 +316,15 @@ export function ReplayViewer() {
             </div>
           </dl>
           <p>
-            Both sides developed a Cannon and Horse before advancing the center
-            Soldiers. Revisit moves 1–4 to compare the mirrored setup.
+            {snapshot.result
+              ? `Result: ${snapshot.result.replaceAll("-", " ")} by ${snapshot.terminationReason?.replaceAll("-", " ") ?? "adjudication"}.`
+              : "This game is still active; the saved replay will grow as moves are accepted."}
           </p>
         </div>
       </aside>
       <p className="sr-only" aria-live="polite">
-        Showing position {step} of {demoMoves.length}. {currentInsight.title}.
+        Showing position {currentStep} of {moves.length}. {currentInsight.title}
+        .
       </p>
     </div>
   );

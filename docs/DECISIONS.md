@@ -2,6 +2,7 @@
 
 | Decision       | Choice                                                          | Reason                                                                                                                              |
 | -------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Brand          | 楚汉 / Han vs Chu · “Dynasty Chess”                             | Ownable bilingual identity rooted in the board's Chu–Han river divide, with an approachable English descriptor.                     |
 | Web deployment | Preserve root vinext/Sites app                                  | Required for the requested Sites deployment while keeping domain packages portable.                                                 |
 | Persistence    | D1 binding for Sites; PostgreSQL model for container deployment | The product needs durable records, and the domain schema is provider-neutral.                                                       |
 | Guest identity | Signed, secure, HTTP-only cookie created server-side            | Survives refresh without exposing privileged identifiers.                                                                           |

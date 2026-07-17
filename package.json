@@ -1,5 +1,5 @@
 {
-  "name": "xiangqi-arena",
+  "name": "hanvschu",
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@11.9.0",
@@ -16,7 +16,7 @@
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
     "test": "pnpm test:unit && pnpm test:integration",
     "test:unit": "vitest run packages --passWithNoTests",
-    "test:integration": "pnpm build && node --test tests/rendered-html.test.mjs",
+    "test:integration": "pnpm build && node --test tests/rendered-html.test.mjs tests/durable-schema.test.mjs",
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",

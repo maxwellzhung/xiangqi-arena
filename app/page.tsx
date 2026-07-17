@@ -43,6 +43,10 @@ export default function Home() {
               <br />
               <em>{t("home.titleLine2")}</em>
             </h1>
+            <p className="hero-brandline">
+              Dynasty Chess <span aria-hidden="true">—</span> Ancient China
+              Strategy Battle
+            </p>
             <p className="hero-lede">{t("home.lede")}</p>
             <div className="hero-actions">
               <Link className="button button-primary" href="/play">

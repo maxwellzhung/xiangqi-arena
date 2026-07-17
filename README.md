@@ -1,6 +1,6 @@
-# Xiangqi Arena
+# 楚汉 / Han vs Chu
 
-Xiangqi Arena is an English-first Chinese Chess product for Western players. The
+Han vs Chu is an English-first Dynasty Chess product for Western players. The
 MVP combines an approachable learning and local-play experience with a pure
 TypeScript rules engine, shared realtime contracts, and a provider-neutral
 authoritative game-server foundation.
@@ -148,13 +148,13 @@ recorded explicitly in `docs/IMPLEMENTATION_STATUS.md`.
 Build the web image from the repository root:
 
 ```bash
-docker build -f Dockerfile.web -t xiangqi-arena-web .
+docker build -f Dockerfile.web -t hanvschu-web .
 ```
 
 Build the realtime image separately:
 
 ```bash
-docker build -f apps/game-server/Dockerfile -t xiangqi-arena-game-server .
+docker build -f apps/game-server/Dockerfile -t hanvschu-game-server .
 ```
 
 `docker-compose.yml` deliberately runs development dependencies only. Keeping

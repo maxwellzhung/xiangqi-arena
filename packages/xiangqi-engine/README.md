@@ -1,6 +1,6 @@
 # Xiangqi engine
 
-Pure TypeScript rules package for Xiangqi Arena. Positions are immutable, use a
+Pure TypeScript rules package for Han vs Chu. Positions are immutable, use a
 flat row-major 9 x 10 board, and follow the repository coordinate system: Black
 starts at row 0, Red starts at row 9, and Red moves first.
 

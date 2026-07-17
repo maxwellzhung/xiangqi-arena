@@ -16,11 +16,12 @@ export function Brand() {
   return (
     <Link href="/" className="brand" aria-label={t("brand.home")}>
       <span className="brand-mark" aria-hidden="true">
-        <i />
-        <i />
+        <i>楚</i>
+        <i>汉</i>
       </span>
-      <span>
-        Xiangqi <b>Arena</b>
+      <span className="brand-copy" aria-hidden="true">
+        <strong>楚汉</strong>
+        <small>HAN VS CHU</small>
       </span>
     </Link>
   );
@@ -91,7 +92,7 @@ export function SiteFooter() {
         <Link href="/terms">{t("footer.terms")}</Link>
         <Link href="/settings">{t("footer.settings")}</Link>
       </nav>
-      <small>© 2026 Xiangqi Arena</small>
+      <small>© 2026 楚汉 · Han vs Chu</small>
     </footer>
   );
 }

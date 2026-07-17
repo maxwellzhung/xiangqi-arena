@@ -77,3 +77,43 @@ CREATE TABLE `durable_room_claims` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `durable_room_claims_game_unique` ON `durable_room_claims` (`game_id`);
+--> statement-breakpoint
+CREATE TRIGGER `durable_game_command_version_guard`
+BEFORE INSERT ON `durable_game_command_guards`
+FOR EACH ROW
+WHEN NOT EXISTS (
+	SELECT 1
+	FROM `games` g
+	JOIN `command_deduplication` c ON c.`command_id` = NEW.`command_id`
+	WHERE g.`id` = NEW.`game_id`
+		AND g.`version` = NEW.`expected_version`
+		AND c.`game_id` = g.`id`
+		AND c.`player_id` IN (g.`red_player_id`, g.`black_player_id`)
+)
+BEGIN
+	SELECT RAISE(ABORT, 'VERSION_OR_AUTH_CONFLICT');
+END;
+--> statement-breakpoint
+CREATE TRIGGER `durable_room_claim_guard`
+BEFORE INSERT ON `durable_room_claims`
+FOR EACH ROW
+WHEN NOT EXISTS (
+	SELECT 1 FROM `private_rooms` pr
+	WHERE pr.`code` = NEW.`room_code`
+		AND pr.`status` = 'waiting'
+		AND pr.`expires_at` > CAST(strftime('%s', 'now') AS INTEGER) * 1000
+)
+BEGIN
+	SELECT RAISE(ABORT, 'ROOM_UNAVAILABLE');
+END;
+--> statement-breakpoint
+CREATE TRIGGER `durable_matchmaking_claim_guard`
+BEFORE INSERT ON `durable_matchmaking_claims`
+FOR EACH ROW
+WHEN NOT EXISTS (
+	SELECT 1 FROM `matchmaking_entries` me
+	WHERE me.`id` = NEW.`entry_id` AND me.`status` = 'waiting'
+)
+BEGIN
+	SELECT RAISE(ABORT, 'MATCH_ENTRY_UNAVAILABLE');
+END;
