@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: xiangqi_arena_test
+          POSTGRES_USER: xiangqi
+          POSTGRES_PASSWORD: xiangqi_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U xiangqi -d xiangqi_arena_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      CI: true
+      DATABASE_URL: postgresql://xiangqi:xiangqi_test@127.0.0.1:5432/xiangqi_arena_test
+      REDIS_URL: redis://127.0.0.1:6379
+      GAME_SERVER_ALLOWED_ORIGINS: http://localhost:3000
+      SESSION_SECRET: ci-only-secret-not-for-production-32-bytes
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type-check
+        run: |
+          pnpm typecheck
+          pnpm --dir packages/xiangqi-engine typecheck
+          pnpm --dir apps/game-server typecheck
+
+      - name: Run unit tests
+        run: |
+          pnpm test:unit
+          pnpm --dir apps/game-server test
+
+      - name: Run integration tests
+        run: pnpm test:integration
+
+      - name: Build production bundle
+        run: pnpm build
