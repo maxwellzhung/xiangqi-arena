@@ -106,7 +106,7 @@ const english = {
   "intro.learn.eyebrow": "LEARN BY DOING · ABOUT 8 MINUTES",
   "intro.learn.title": "A familiar strategy. A different rhythm.",
   "intro.learn.copy":
-    "Make real moves, see exactly why mistakes fail, and finish with a five-question readiness check. No account required.",
+    "Make real moves, see exactly why mistakes fail, and finish with a five-position practical readiness check. No account required.",
   "intro.leaderboard.eyebrow": "RATED 10+0 · THIS SEASON",
   "intro.leaderboard.title": "The Han vs Chu leaderboard",
   "intro.leaderboard.copy":
@@ -269,7 +269,7 @@ const simplifiedChinese: TranslationTable = {
   "intro.learn.eyebrow": "边做边学 · 约 8 分钟",
   "intro.learn.title": "熟悉的策略，不同的节奏。",
   "intro.learn.copy":
-    "亲自走棋，准确了解错误原因，并以五道准备度测试题结束课程。无需账户。",
+    "亲自走棋，准确了解错误原因，并以五个实战局面的准备度测试结束课程。无需账户。",
   "intro.leaderboard.eyebrow": "本赛季 · 10+0 等级分",
   "intro.leaderboard.title": "楚汉排行榜",
   "intro.leaderboard.copy":
@@ -424,7 +424,7 @@ const traditionalChinese: TranslationTable = {
   "intro.learn.eyebrow": "邊做邊學 · 約 8 分鐘",
   "intro.learn.title": "熟悉的策略，不同的節奏。",
   "intro.learn.copy":
-    "親自走棋，準確了解錯誤原因，並以五道準備度測驗題結束課程。無需帳戶。",
+    "親自走棋，準確了解錯誤原因，並以五個實戰局面的準備度測驗結束課程。無需帳戶。",
   "intro.leaderboard.eyebrow": "本賽季 · 10+0 等級分",
   "intro.leaderboard.title": "楚漢排行榜",
   "intro.leaderboard.copy":
@@ -580,7 +580,7 @@ const japanese: TranslationTable = {
   "intro.learn.eyebrow": "実践で学ぶ · 約8分",
   "intro.learn.title": "なじみのある戦略、新しいリズム。",
   "intro.learn.copy":
-    "実際に駒を動かし、なぜ手が失敗するのかを確認し、5問の理解度チェックで仕上げます。アカウントは不要です。",
+    "実際に駒を動かし、なぜ手が失敗するのかを確認し、5つの実戦局面による理解度チェックで仕上げます。アカウントは不要です。",
   "intro.leaderboard.eyebrow": "今シーズン · レーティング 10+0",
   "intro.leaderboard.title": "Han vs Chu ランキング",
   "intro.leaderboard.copy":
