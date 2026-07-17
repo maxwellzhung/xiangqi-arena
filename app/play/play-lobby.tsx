@@ -32,13 +32,16 @@ export function PlayLobby({
             <h2>{t("play.localTitle")}</h2>
             <p>{t("play.localCopy")}</p>
           </div>
-          <button
-            className="button button-primary"
-            type="button"
-            onClick={() => setMode("local")}
-          >
-            {t("play.startLocal")}
-          </button>
+          <form action="/play" method="get">
+            <button
+              className="button button-primary"
+              type="submit"
+              name="mode"
+              value="local"
+            >
+              {t("play.startLocal")}
+            </button>
+          </form>
         </section>
       </div>
       <OnlineLobby />

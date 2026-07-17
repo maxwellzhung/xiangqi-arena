@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LanguageSelect, type TranslationKey, useLanguage } from "../i18n";
 
 const navItems = [
@@ -30,7 +30,15 @@ export function Brand() {
 export function SiteHeader() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
   const { t } = useLanguage();
+
+  useEffect(() => {
+    // Prevent an early mobile-menu press from being lost during hydration.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHydrated(true);
+  }, []);
+
   return (
     <header className="site-header">
       <Brand />
@@ -39,6 +47,7 @@ export function SiteHeader() {
         type="button"
         aria-expanded={open}
         aria-controls="site-nav"
+        disabled={!hydrated}
         onClick={() => setOpen(!open)}
       >
         <span className="sr-only">{t("nav.menu")}</span>

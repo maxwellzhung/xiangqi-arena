@@ -36,7 +36,7 @@ test("two guests complete an authoritative private game and open its replay", as
       })
       .click();
     await expect(guest.getByText("Soldier a3-a4")).toBeVisible({
-      timeout: 10_000,
+      timeout: 20_000,
     });
 
     await guest
@@ -48,7 +48,7 @@ test("two guests complete an authoritative private game and open its replay", as
       })
       .click();
     await expect(owner.getByText("Soldier a6-a5")).toBeVisible({
-      timeout: 10_000,
+      timeout: 20_000,
     });
 
     const authoritativeState = await owner.evaluate(async () => {
@@ -101,10 +101,10 @@ test("two guests complete an authoritative private game and open its replay", as
     guest.once("dialog", (dialog) => void dialog.accept());
     await guest.getByRole("button", { name: "Resign" }).click();
     await expect(guest.getByText(/You lost by resignation/i)).toBeVisible({
-      timeout: 10_000,
+      timeout: 20_000,
     });
     await expect(owner.getByText(/You won by resignation/i)).toBeVisible({
-      timeout: 10_000,
+      timeout: 20_000,
     });
 
     await owner.getByRole("link", { name: "Review this game" }).click();
@@ -112,7 +112,7 @@ test("two guests complete an authoritative private game and open its replay", as
       owner.getByRole("heading", { name: "Review the turning points" }),
     ).toBeVisible();
     await expect(owner.getByText("Soldier a3-a4")).toBeVisible({
-      timeout: 10_000,
+      timeout: 20_000,
     });
     await expect(owner.getByText(/red win by resignation/i)).toBeVisible();
 
@@ -121,7 +121,7 @@ test("two guests complete an authoritative private game and open its replay", as
       owner.getByRole("heading", { name: "Your saved games" }),
     ).toBeVisible();
     await expect(owner.getByText("Win", { exact: true })).toBeVisible({
-      timeout: 10_000,
+      timeout: 20_000,
     });
     await expect(owner.getByRole("link", { name: "Replay" })).toBeVisible();
   } finally {

@@ -1872,6 +1872,12 @@ a {
 .play-mode-card .button {
   margin-top: auto;
 }
+.play-mode-card form {
+  margin-top: auto;
+}
+.play-mode-card form .button {
+  width: 100%;
+}
 .private-panel {
   margin-top: 18px;
   display: grid;

@@ -51,12 +51,19 @@ export function LocalGame({
   const [announcement, setAnnouncement] = useState(
     "Red to move. Select a piece.",
   );
+  const [hydrated, setHydrated] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const legalMoves = selected ? generateLegalMoves(position, selected) : [];
   const status = manualResult ? null : getGameStatus(position, positionHistory);
   const terminal = !!manualResult || status?.isTerminal;
   const aiThinking = solo && position.turn === "black" && !terminal;
-  const inputDisabled = terminal || aiThinking;
+  const inputDisabled = !hydrated || terminal || aiThinking;
+
+  useEffect(() => {
+    // Keep the server-rendered board inert until React can handle input.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHydrated(true);
+  }, []);
 
   useEffect(() => {
     if (!solo || position.turn !== "black" || terminal) return;

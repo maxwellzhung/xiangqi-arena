@@ -177,9 +177,7 @@ export class GameServerClient {
     readonly session: GuestSession,
   ) {}
 
-  static async connect(
-    serverUrl = configuredGameServerUrl,
-  ): Promise<{
+  static async connect(serverUrl = configuredGameServerUrl): Promise<{
     client: GameServerClient;
     activeGame: ActiveGameResponse | null;
   }> {

@@ -214,6 +214,7 @@ export function XiangqiBoard({
                 aria-label={`${piece ? `${piece.color} ${name}` : "Empty intersection"}, coordinate ${coordinate}${selectedNow ? ", selected" : ""}${destination ? ", legal destination" : ""}${hinted ? ", hint" : ""}`}
                 aria-selected={selectedNow}
                 aria-disabled={disabled}
+                disabled={disabled}
                 tabIndex={index === focusIndex ? 0 : -1}
                 draggable={!!piece && !disabled}
                 onFocus={() => setFocusIndex(index)}

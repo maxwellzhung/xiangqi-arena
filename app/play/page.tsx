@@ -10,6 +10,7 @@ export default async function PlayPage({
 }) {
   const { mode } = await searchParams;
   const guided = mode === "guided";
+  const local = mode === "local";
   return (
     <AppPage>
       <PageIntro
@@ -24,7 +25,10 @@ export default async function PlayPage({
         titleKey={guided ? "intro.play.guidedTitle" : "intro.play.title"}
         copyKey={guided ? "intro.play.guidedCopy" : "intro.play.copy"}
       />
-      <PlayLobby initialMode={guided ? "local" : "lobby"} guided={guided} />
+      <PlayLobby
+        initialMode={guided || local ? "local" : "lobby"}
+        guided={guided}
+      />
     </AppPage>
   );
 }

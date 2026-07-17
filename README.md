@@ -1,14 +1,11 @@
 # 楚汉 / Han vs Chu
 
-Han vs Chu is an English-first Dynasty Chess product for Western players. The
-MVP combines an approachable learning and local-play experience with a pure
-TypeScript rules engine, shared realtime contracts, and a provider-neutral
-authoritative game-server foundation.
-
-The repository is production-oriented scaffolding, not a claim that every
-product flow is production-complete. See [Current limitations](#current-limitations)
-and [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md) before a
-release.
+Han vs Chu is an English-first Xiangqi product for Western players. The MVP
+combines interactive learning, accessible local play, and durable online guest
+games with a pure TypeScript rules engine and server-authoritative protocol.
+The default Sites deployment serves the web product and `/api/v1/*` game API
+from one origin and persists rooms, games, moves, identities, and command
+deduplication in D1.
 
 ## Repository map
 
@@ -39,27 +36,29 @@ is not already available.
 ```bash
 pnpm install --frozen-lockfile
 cp .env.example .env
-docker compose up -d --wait
 pnpm dev
 ```
 
-The web app defaults to <http://localhost:3000>. Start the realtime service in
-a second terminal:
+The web app defaults to <http://localhost:3000>. Its same-origin game API and
+local D1 binding are included, so private rooms, quick match, reconnect,
+history, and replay work without a second process.
+
+The provider-neutral reference service can still be run separately:
 
 ```bash
 pnpm --dir apps/game-server dev
 ```
 
 It defaults to <http://localhost:3001>. Its liveness and dependency-readiness
-checks are `GET /healthz` and `GET /readyz`.
+checks are `GET /healthz` and `GET /readyz`. Set
+`NEXT_PUBLIC_GAME_SERVER_URL` only when intentionally testing this external
+service. Its current repository is in-memory; PostgreSQL and Redis are reserved
+for a future durable container adapter. Sites/D1 is the validated deployment
+path for this MVP.
 
-PostgreSQL and Redis are started because they are the intended durable and
-distributed production adapters. The current MVP realtime repository is
-in-memory and does not consume `DATABASE_URL` or `REDIS_URL` yet, so the game
-server remains runnable when those containers are absent. State is lost when
-the realtime process restarts.
-
-To stop local dependencies without deleting data:
+For work on the future container adapters, start PostgreSQL and Redis with
+`docker compose up -d --wait`. To stop those optional dependencies without
+deleting data:
 
 ```bash
 docker compose down
@@ -76,15 +75,15 @@ docker compose down --volumes
 `.env.example` is the source of truth for supported and reserved settings. The
 important local values are:
 
-| Variable                      | Purpose                                                       |
-| ----------------------------- | ------------------------------------------------------------- |
-| `NEXT_PUBLIC_GAME_SERVER_URL` | Browser-visible realtime server URL                           |
-| `PUBLIC_WEB_ORIGIN`           | Canonical origin used to generate private-room join links     |
-| `HOST`, `PORT`                | Realtime bind address and service-specific port               |
-| `GAME_SERVER_ALLOWED_ORIGINS` | Exact comma-separated HTTP/realtime origin allowlist          |
-| `DATABASE_URL`                | Reserved PostgreSQL adapter connection string                 |
-| `REDIS_URL`                   | Reserved queue, presence, fan-out, and rate-limit adapter URL |
-| `SESSION_SECRET`              | Production-only guest/session signing secret                  |
+| Variable                      | Purpose                                                        |
+| ----------------------------- | -------------------------------------------------------------- |
+| `NEXT_PUBLIC_GAME_SERVER_URL` | Optional external game-server URL; defaults to same-origin API |
+| `PUBLIC_WEB_ORIGIN`           | Canonical origin used to generate private-room join links      |
+| `HOST`, `PORT`                | Realtime bind address and service-specific port                |
+| `GAME_SERVER_ALLOWED_ORIGINS` | Exact comma-separated HTTP/realtime origin allowlist           |
+| `DATABASE_URL`                | Reserved PostgreSQL adapter connection string                  |
+| `REDIS_URL`                   | Reserved queue, presence, fan-out, and rate-limit adapter URL  |
+| `SESSION_SECRET`              | Production-only guest/session signing secret                   |
 
 Do not put production secrets in `.env`, container images, client-prefixed
 variables, or source control. Inject secrets at runtime through the deployment
@@ -132,16 +131,16 @@ pnpm test:integration
 pnpm build
 ```
 
-Browser E2E is intentionally separate because it needs both web and realtime
-processes plus two isolated browser contexts:
+Browser E2E is intentionally separate and creates two isolated browser
+contexts against the same-origin D1 service:
 
 ```bash
 pnpm test:e2e
 ```
 
 Do not interpret a green unit/integration pipeline as proof that the two-browser
-reconnect, clock, resignation, rematch, or replay journey passed. E2E status is
-recorded explicitly in `docs/IMPLEMENTATION_STATUS.md`.
+reconnect, clock, resignation, replay, and history journey passed. The latest
+executed E2E evidence is recorded in `docs/IMPLEMENTATION_STATUS.md`.
 
 ## Containers
 
@@ -166,9 +165,10 @@ loopback by default; do not expose their ports publicly.
 
 Two supported shapes share the same domain boundaries:
 
-1. **Sites:** build the root vinext application and publish its
-   Cloudflare-compatible worker. Logical D1/R2 bindings live in
-   `.openai/hosting.json`; runtime values are managed by Sites.
+1. **Sites (validated MVP path):** build the root vinext application and
+   publish its Cloudflare-compatible worker. The web UI and `/api/v1/*` game
+   service share an origin; the logical `DB` binding in
+   `.openai/hosting.json` supplies durable D1 storage.
 2. **Provider-neutral containers:** run immutable web and game-server images
    behind a TLS-terminating reverse proxy, with managed PostgreSQL and managed
    Redis on private networks.
@@ -225,21 +225,19 @@ compliance.
 
 ## Current limitations
 
-- The realtime service uses in-memory repositories. PostgreSQL and Redis
-  adapters, horizontal fan-out, and restart recovery are not complete.
-- Guest sessions currently return a signed bearer token. Production should
-  move that token behind a secure, HTTP-only, same-site cookie or an equivalent
-  hardened backend-for-frontend boundary before handling sensitive accounts.
-- Full account registration, Google OAuth, passwordless email, and production
-  rating history require external credentials and durable adapters. Guest and
-  casual flows are the usable MVP path.
+- Full account registration, Google OAuth, passwordless email, and usable rated
+  matchmaking require external credentials. Guest and casual flows are the
+  validated MVP path; guest identity uses a secure, HTTP-only, same-site cookie.
+- The optional standalone container game server still uses an in-memory
+  repository. PostgreSQL/Redis adapters and multi-node fan-out are not complete;
+  use the same-origin Sites/D1 service when durable MVP behavior is required.
 - The threefold-repetition policy is a deterministic MVP approximation, not
   full tournament perpetual-check/chase adjudication.
 - Advanced anti-cheat, tournaments, payments, public chat, voice, and spectator
   chat are intentionally out of scope.
 - Legal/privacy copy is a review-required template.
-- A production-like two-browser E2E result must not be claimed unless the
-  standalone web and realtime stack was actually exercised.
+- Hosted behavior must be rechecked after each deployment; local Miniflare/D1
+  and browser acceptance do not replace a deployed smoke test.
 
 ## Documentation
 
@@ -249,4 +247,5 @@ compliance.
 - [`docs/REALTIME_PROTOCOL.md`](docs/REALTIME_PROTOCOL.md) — commands, events, and idempotency
 - [`docs/DECISIONS.md`](docs/DECISIONS.md) — important tradeoffs
 - [`docs/IMPLEMENTATION_STATUS.md`](docs/IMPLEMENTATION_STATUS.md) — honest phase/test status
+- [`docs/WESTERN_USER_SCORECARD.md`](docs/WESTERN_USER_SCORECARD.md) — Western-player scoring rubric, hard gates, and prioritized gaps
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — deployment and rollback summary
