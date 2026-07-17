@@ -36,7 +36,10 @@ export interface GameServerConfig {
   sessionSecret: string;
   publicWebOrigin: string;
   allowedOrigins: Set<string>;
+  secureCookies?: boolean;
 }
+
+const guestCookieName = "xiangqi_arena_session";
 
 function json(response: ServerResponse, status: number, value: unknown): void {
   const body = JSON.stringify(value);
@@ -73,6 +76,35 @@ async function readJson(
 function bearer(request: IncomingMessage): string | undefined {
   const value = request.headers.authorization;
   return Array.isArray(value) ? value[0] : value;
+}
+
+function sessionAuthorization(request: IncomingMessage): string | undefined {
+  const authorization = bearer(request);
+  if (authorization) return authorization;
+  const header = request.headers.cookie;
+  const cookie = (Array.isArray(header) ? header.join(";") : (header ?? ""))
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${guestCookieName}=`));
+  if (!cookie) return undefined;
+  try {
+    return `Bearer ${decodeURIComponent(cookie.slice(guestCookieName.length + 1))}`;
+  } catch {
+    return undefined;
+  }
+}
+
+function guestSessionCookie(token: string, secure: boolean): string {
+  return [
+    `${guestCookieName}=${encodeURIComponent(token)}`,
+    "HttpOnly",
+    "Path=/",
+    "SameSite=Lax",
+    "Max-Age=2592000",
+    secure ? "Secure" : "",
+  ]
+    .filter(Boolean)
+    .join("; ");
 }
 
 function log(
@@ -133,6 +165,7 @@ export function createGameServer(config: GameServerConfig) {
     if (origin) {
       response.setHeader("access-control-allow-origin", origin);
       response.setHeader("vary", "origin");
+      response.setHeader("access-control-allow-credentials", "true");
       response.setHeader(
         "access-control-allow-headers",
         "authorization, content-type",
@@ -168,20 +201,58 @@ export function createGameServer(config: GameServerConfig) {
         guestSessionLimiter.consume(request.socket.remoteAddress ?? "unknown");
         const body = guestSessionSchema.parse(await readJson(request));
         const session = await sessions.createGuest(body.displayName);
+        const bearerTransport = url.searchParams.get("transport") === "bearer";
+        if (!bearerTransport) {
+          response.setHeader(
+            "set-cookie",
+            guestSessionCookie(session.token, config.secureCookies ?? false),
+          );
+        }
         json(response, 201, {
           player: {
             id: session.identity.id,
             kind: session.identity.kind,
             displayName: session.identity.displayName,
           },
-          accessToken: session.token,
+          ...(bearerTransport ? { accessToken: session.token } : {}),
         });
         return;
       }
 
       authenticationLimiter.consume(request.socket.remoteAddress ?? "unknown");
-      const identity = await sessions.authenticate(bearer(request));
+      const identity = await sessions.authenticate(
+        sessionAuthorization(request),
+      );
+      if (request.method === "GET" && url.pathname === "/v1/me") {
+        json(response, 200, {
+          player: {
+            id: identity.id,
+            kind: identity.kind,
+            displayName: identity.displayName,
+          },
+        });
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/v1/active-game") {
+        json(response, 200, {
+          activeGame: await games.getActiveGame(identity.id),
+        });
+        return;
+      }
       if (request.method === "GET" && url.pathname === "/v1/events") {
+        const gameId = url.searchParams.get("gameId");
+        const participants = gameId
+          ? await games.players(
+              (await games.getSnapshot(gameId, identity.id)).gameId,
+            )
+          : null;
+        if (gameId) {
+          presence.connected(gameId, identity.id);
+          eventHub.publishMany(
+            participants!.filter((playerId) => playerId !== identity.id),
+            [{ type: "opponentReconnected", gameId }],
+          );
+        }
         response.writeHead(200, {
           "content-type": "text/event-stream; charset=utf-8",
           "cache-control": "no-cache, no-transform",
@@ -200,6 +271,13 @@ export function createGameServer(config: GameServerConfig) {
         request.on("close", () => {
           clearInterval(heartbeat);
           unsubscribe();
+          if (gameId && participants) {
+            const graceEndsAt = presence.disconnected(gameId, identity.id);
+            eventHub.publishMany(
+              participants.filter((playerId) => playerId !== identity.id),
+              [{ type: "opponentDisconnected", gameId, graceEndsAt }],
+            );
+          }
         });
         return;
       }
@@ -317,6 +395,7 @@ export function configFromEnvironment(
     publicWebOrigin:
       environment.PUBLIC_WEB_ORIGIN ?? allowed[0] ?? "http://localhost:3000",
     allowedOrigins: new Set(allowed),
+    secureCookies: production,
   };
 }
 

@@ -119,6 +119,44 @@ export class GameService {
       status: game.status,
       result: game.result,
       terminationReason: game.terminationReason,
+      timeControlId: game.timeControlId,
+      rated: game.rated,
+      redPlayer: {
+        id: game.redPlayer.id,
+        displayName: game.redPlayer.displayName,
+        kind: game.redPlayer.kind,
+        rating: game.redPlayer.rating,
+      },
+      blackPlayer: {
+        id: game.blackPlayer.id,
+        displayName: game.blackPlayer.displayName,
+        kind: game.blackPlayer.kind,
+        rating: game.blackPlayer.rating,
+      },
+      drawOfferedBy: game.drawOfferedBy,
+      rematchRequestedBy: game.rematchRequestedBy,
+      moves: game.moves.map(({ sequence, color, move, capturedPiece }) => ({
+        sequence,
+        color,
+        move,
+        capturedPiece,
+      })),
+    };
+  }
+
+  async getActiveGame(
+    playerId: string,
+  ): Promise<{ snapshot: GameSnapshot; color: "red" | "black" } | null> {
+    const game = await this.games.findActiveByPlayer(playerId);
+    if (!game) return null;
+    await this.games.withGame(game.id, (draft) =>
+      this.completeTimeoutIfNeeded(draft),
+    );
+    const refreshed = await this.games.get(game.id);
+    if (!refreshed) return null;
+    return {
+      snapshot: this.snapshot(refreshed),
+      color: refreshed.redPlayer.id === playerId ? "red" : "black",
     };
   }
 
@@ -291,7 +329,11 @@ export class GameService {
       }
       game.drawOfferedBy = color;
       return {
-        event: { type: "drawOffered", gameId: game.id },
+        event: {
+          type: "drawOffered",
+          gameId: game.id,
+          snapshot: this.snapshot(game),
+        },
         playerIds: [game.redPlayer.id, game.blackPlayer.id],
       };
     });
@@ -320,7 +362,11 @@ export class GameService {
       ];
       if (!command.accept) {
         return {
-          event: { type: "drawOfferCancelled", gameId: game.id },
+          event: {
+            type: "drawOfferCancelled",
+            gameId: game.id,
+            snapshot: this.snapshot(game),
+          },
           playerIds,
         };
       }
@@ -348,7 +394,11 @@ export class GameService {
       }
       game.rematchRequestedBy = color;
       return {
-        event: { type: "rematchRequested", gameId: game.id },
+        event: {
+          type: "rematchRequested",
+          gameId: game.id,
+          snapshot: this.snapshot(game),
+        },
         playerIds: [game.redPlayer.id, game.blackPlayer.id],
       };
     });
@@ -396,7 +446,11 @@ export class GameService {
       }
       return {
         event: command.accept
-          ? { type: "rematchRequested", gameId: game.id }
+          ? {
+              type: "rematchRequested",
+              gameId: game.id,
+              snapshot: this.snapshot(game),
+            }
           : { type: "stateSnapshot", snapshot: this.snapshot(game) },
         playerIds,
       } satisfies GameMutation;

@@ -34,6 +34,10 @@ test("server-renders the Xiangqi Arena product landing page", async () => {
   assert.match(html, /No account needed/);
   assert.match(html, /Create private game/);
   assert.match(html, /Learn the rules/);
+  assert.match(html, /中文（简体）/);
+  assert.match(html, /繁體中文/);
+  assert.match(html, /English/);
+  assert.match(html, /日本語/);
   assert.doesNotMatch(
     html,
     /codex-preview|Your site is taking shape|react-loading-skeleton/i,
@@ -53,6 +57,33 @@ test("renders important public routes", async () => {
     assert.equal(response.status, 200, pathname);
     assert.match(await response.text(), new RegExp(copy, "i"), pathname);
   }
+});
+
+test("server-renders the complete interactive learning path", async () => {
+  const response = await render("/learn");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /LEARN BY DOING/);
+  assert.match(html, /I know Western chess/);
+  assert.match(html, /Board, setup &amp; coordinates/);
+  assert.match(html, /General &amp; Advisor/);
+  assert.match(html, /The Elephant’s eye/);
+  assert.match(html, /Cannon screens/);
+  assert.match(html, /Soldiers after the river/);
+  assert.match(html, /Checkmate &amp; stalemate/);
+  assert.match(html, /Final check/);
+  assert.match(html, /Start guided first game/);
+});
+
+test("guided tutorial handoff opens the coached board directly", async () => {
+  const response = await render("/play?mode=guided");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /GUIDED FIRST GAME/);
+  assert.match(html, /Learn while you play/);
+  assert.match(html, /Start with a Soldier/);
+  assert.match(html, /PIECE KEY/);
+  assert.doesNotMatch(html, /Choose how you want to play/);
 });
 
 test("removes starter assets and wires a bespoke social card", async () => {

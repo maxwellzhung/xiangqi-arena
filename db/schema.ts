@@ -457,3 +457,202 @@ export const gameConnections = sqliteTable(
     index("game_connections_grace_idx").on(table.connected, table.graceEndsAt),
   ],
 );
+
+/**
+ * Sites-hosted online play keeps its browser-facing guest profile separate
+ * from the opaque credential digest. This lets an existing guest identity be
+ * upgraded without ever storing the cookie value itself.
+ */
+export const durableGuestProfiles = sqliteTable("durable_guest_profiles", {
+  playerId: text("player_id")
+    .primaryKey()
+    .references(() => guestIdentities.playerId, {
+      onDelete: "cascade",
+      onUpdate: "cascade",
+    }),
+  displayName: text("display_name").notNull(),
+  updatedAt: updatedAt(),
+});
+
+/** Durable draw/rematch state for a game. */
+export const durableGameNegotiations = sqliteTable(
+  "durable_game_negotiations",
+  {
+    gameId: text("game_id")
+      .primaryKey()
+      .references(() => games.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    drawOfferedBy: text("draw_offered_by", { enum: ["red", "black"] }),
+    rematchRequestedBy: text("rematch_requested_by", {
+      enum: ["red", "black"],
+    }),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    check(
+      "durable_game_negotiations_draw_check",
+      sql`${table.drawOfferedBy} IS NULL OR ${table.drawOfferedBy} IN ('red', 'black')`,
+    ),
+    check(
+      "durable_game_negotiations_rematch_check",
+      sql`${table.rematchRequestedBy} IS NULL OR ${table.rematchRequestedBy} IN ('red', 'black')`,
+    ),
+  ],
+);
+
+/**
+ * Inserted before each versioned mutation. A migration-owned trigger compares
+ * expected_version with games.version, so a D1 batch aborts atomically instead
+ * of committing a stale write whose UPDATE matched zero rows.
+ */
+export const durableGameCommandGuards = sqliteTable(
+  "durable_game_command_guards",
+  {
+    commandId: text("command_id")
+      .primaryKey()
+      .references(() => commandDeduplication.commandId, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    gameId: text("game_id")
+      .notNull()
+      .references(() => games.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    expectedVersion: integer("expected_version").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index("durable_game_command_guards_game_idx").on(table.gameId),
+    check(
+      "durable_game_command_guards_version_check",
+      sql`${table.expectedVersion} >= 0`,
+    ),
+  ],
+);
+
+/** A room code can be claimed by exactly one game, even under concurrent joins. */
+export const durableRoomClaims = sqliteTable(
+  "durable_room_claims",
+  {
+    roomCode: text("room_code")
+      .primaryKey()
+      .references(() => privateRooms.code, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    gameId: text("game_id")
+      .notNull()
+      .references(() => games.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    joiningPlayerId: text("joining_player_id")
+      .notNull()
+      .references(() => players.id, {
+        onDelete: "restrict",
+        onUpdate: "cascade",
+      }),
+    createdAt: createdAt(),
+  },
+  (table) => [uniqueIndex("durable_room_claims_game_unique").on(table.gameId)],
+);
+
+/** Each matchmaking entry can belong to at most one completed pairing. */
+export const durableMatchmakingClaims = sqliteTable(
+  "durable_matchmaking_claims",
+  {
+    entryId: text("entry_id")
+      .primaryKey()
+      .references(() => matchmakingEntries.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    gameId: text("game_id")
+      .notNull()
+      .references(() => games.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    createdAt: createdAt(),
+  },
+  (table) => [index("durable_matchmaking_claims_game_idx").on(table.gameId)],
+);
+
+/** One durable waiting-queue entry per player. */
+export const durableMatchmakingPresence = sqliteTable(
+  "durable_matchmaking_presence",
+  {
+    playerId: text("player_id")
+      .primaryKey()
+      .references(() => players.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    entryId: text("entry_id")
+      .notNull()
+      .references(() => matchmakingEntries.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("durable_matchmaking_presence_entry_unique").on(table.entryId),
+  ],
+);
+
+/** Durable per-player event outbox used by the same-origin SSE endpoint. */
+export const durablePlayerEvents = sqliteTable(
+  "durable_player_events",
+  {
+    id: text("id").primaryKey(),
+    playerId: text("player_id")
+      .notNull()
+      .references(() => players.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    gameId: text("game_id").references(() => games.id, {
+      onDelete: "cascade",
+      onUpdate: "cascade",
+    }),
+    payload: text("payload").notNull(),
+    deliveredAt: integer("delivered_at"),
+    createdAtMs: integer("created_at_ms").notNull(),
+  },
+  (table) => [
+    index("durable_player_events_pending_idx").on(
+      table.playerId,
+      table.deliveredAt,
+      table.createdAtMs,
+    ),
+    index("durable_player_events_game_idx").on(table.gameId, table.createdAtMs),
+  ],
+);
+
+/** Exactly one accepted rematch may be created from a completed game. */
+export const durableRematches = sqliteTable(
+  "durable_rematches",
+  {
+    sourceGameId: text("source_game_id")
+      .primaryKey()
+      .references(() => games.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    rematchGameId: text("rematch_game_id")
+      .notNull()
+      .references(() => games.id, {
+        onDelete: "cascade",
+        onUpdate: "cascade",
+      }),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("durable_rematches_game_unique").on(table.rematchGameId),
+  ],
+);

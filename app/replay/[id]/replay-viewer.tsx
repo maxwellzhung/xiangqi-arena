@@ -1,10 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   applyMove,
   createInitialPosition,
   formatMove,
+  generateLegalMoves,
+  getPiece,
+  isInCheck,
   type Move,
   type Position,
 } from "@/packages/xiangqi-engine/src";
@@ -35,13 +38,109 @@ export function ReplayViewer() {
   );
   const [step, setStep] = useState(positions.length - 1);
   const [orientation, setOrientation] = useState<"red" | "black">("red");
+  const [pieceStyle, setPieceStyle] = useState<"western" | "traditional">(
+    "western",
+  );
+  useEffect(() => {
+    function navigate(event: KeyboardEvent) {
+      const target = event.target as HTMLElement;
+      if (target.matches("input, textarea, select")) return;
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        setStep((current) => Math.max(0, current - 1));
+      }
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        setStep((current) => Math.min(positions.length - 1, current + 1));
+      }
+      if (event.key === "Home") {
+        event.preventDefault();
+        setStep(0);
+      }
+      if (event.key === "End") {
+        event.preventDefault();
+        setStep(positions.length - 1);
+      }
+    }
+    window.addEventListener("keydown", navigate);
+    return () => window.removeEventListener("keydown", navigate);
+  }, [positions.length]);
+
+  const currentInsight = useMemo(() => {
+    if (step === 0) {
+      return {
+        title: "Initial position",
+        copy: "Red moves first. Both armies begin mirrored across the river.",
+      };
+    }
+    const move = demoMoves[step - 1];
+    const before = positions[step - 1];
+    const after = positions[step];
+    const piece = getPiece(before, move.from);
+    const captured = getPiece(before, move.to);
+    const check = isInCheck(after, after.turn);
+    const pieceLesson: Record<string, string> = {
+      cannon:
+        "The Cannon has changed files. Watch which piece could become its future capture screen.",
+      horse:
+        "This develops a Horse away from the back rank; its adjacent leg squares still control where it can go.",
+      soldier:
+        "The Soldier advanced toward the river. It gains sideways movement only after crossing.",
+    };
+    return {
+      title: `${piece ? `${piece.type[0].toUpperCase()}${piece.type.slice(1)}` : "Piece"} moved ${labels[step - 1]}`,
+      copy: `${captured ? `It captured a ${captured.type}. ` : ""}${check ? "The move gives check. " : ""}${piece ? (pieceLesson[piece.type] ?? "Compare the highlighted start and destination intersections.") : ""}`,
+    };
+  }, [labels, positions, step]);
+
+  const reviewFacts = useMemo(() => {
+    let checks = 0;
+    let captures = 0;
+    for (let index = 1; index < positions.length; index += 1) {
+      if (getPiece(positions[index - 1], demoMoves[index - 1].to)) captures++;
+      if (isInCheck(positions[index], positions[index].turn)) checks++;
+    }
+    return {
+      checks,
+      captures,
+      legalReplies: generateLegalMoves(positions[positions.length - 1]).length,
+    };
+  }, [positions]);
   return (
     <div className="replay-layout">
       <div>
+        <section className="replay-insight" aria-live="polite">
+          <div>
+            <span>LEARNING NOTE · NOT AN ENGINE EVALUATION</span>
+            <h2>{currentInsight.title}</h2>
+            <p>{currentInsight.copy}</p>
+          </div>
+          <div className="replay-style-controls">
+            <button
+              type="button"
+              onClick={() =>
+                setPieceStyle(
+                  pieceStyle === "western" ? "traditional" : "western",
+                )
+              }
+            >
+              {pieceStyle === "western" ? "帥 Traditional" : "G Western"}
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                setOrientation(orientation === "red" ? "black" : "red")
+              }
+            >
+              ↕ Flip board
+            </button>
+          </div>
+        </section>
         <XiangqiBoard
           position={positions[step]}
           lastMove={step ? demoMoves[step - 1] : null}
           orientation={orientation}
+          styleMode={pieceStyle}
           disabled
         />
         <div className="replay-controls">
@@ -80,19 +179,27 @@ export function ReplayViewer() {
           >
             ↦
           </button>
+          <label className="replay-scrubber">
+            <span className="sr-only">Replay position</span>
+            <input
+              type="range"
+              min="0"
+              max={demoMoves.length}
+              value={step}
+              onChange={(event) => setStep(Number(event.target.value))}
+            />
+          </label>
         </div>
+        <p className="replay-shortcuts">
+          Keyboard: ← previous · → next · Home start · End finish
+        </p>
       </div>
       <aside className="move-panel replay-panel">
         <div className="move-panel-head">
           <span>REPLAY MOVES</span>
-          <button
-            type="button"
-            onClick={() =>
-              setOrientation(orientation === "red" ? "black" : "red")
-            }
-          >
-            ↕ Flip board
-          </button>
+          <b>
+            {step} / {demoMoves.length}
+          </b>
         </div>
         <ol>
           <li className={step === 0 ? "active" : ""}>
@@ -114,13 +221,41 @@ export function ReplayViewer() {
           ))}
         </ol>
         <div className="practice-note">
-          <b>Demo replay</b>
+          <b>Position record</b>
           <p>
             Production replays use the exact position saved after each accepted
             server move.
           </p>
         </div>
+        <div className="replay-facts" aria-label="Replay summary">
+          <p className="eyebrow">GAME INSIGHTS</p>
+          <dl>
+            <div>
+              <dt>Moves</dt>
+              <dd>{demoMoves.length}</dd>
+            </div>
+            <div>
+              <dt>Captures</dt>
+              <dd>{reviewFacts.captures}</dd>
+            </div>
+            <div>
+              <dt>Checks</dt>
+              <dd>{reviewFacts.checks}</dd>
+            </div>
+            <div>
+              <dt>Legal replies now</dt>
+              <dd>{reviewFacts.legalReplies}</dd>
+            </div>
+          </dl>
+          <p>
+            Both sides developed a Cannon and Horse before advancing the center
+            Soldiers. Revisit moves 1–4 to compare the mirrored setup.
+          </p>
+        </div>
       </aside>
+      <p className="sr-only" aria-live="polite">
+        Showing position {step} of {demoMoves.length}. {currentInsight.title}.
+      </p>
     </div>
   );
 }

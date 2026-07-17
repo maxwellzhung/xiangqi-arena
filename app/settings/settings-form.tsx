@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { localeOptions, useLanguage } from "../i18n";
 
 type Preferences = {
   pieces: "western" | "traditional";
@@ -16,6 +17,7 @@ const defaults: Preferences = {
 };
 
 export function SettingsForm() {
+  const { locale, setLocale, t } = useLanguage();
   const [prefs, setPrefs] = useState(defaults);
   const [saved, setSaved] = useState(false);
   useEffect(() => {
@@ -37,20 +39,44 @@ export function SettingsForm() {
   }
   return (
     <div className="settings-grid">
+      <section className="surface language-settings">
+        <h2>{t("language.heading")}</h2>
+        <p>{t("language.copy")}</p>
+        <div
+          className="language-options"
+          role="radiogroup"
+          aria-label={t("language.label")}
+        >
+          {localeOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={locale === option.value}
+              lang={option.value}
+              onClick={() => setLocale(option.value)}
+            >
+              <span>{option.label}</span>
+              {locale === option.value && <i aria-hidden="true">✓</i>}
+            </button>
+          ))}
+        </div>
+      </section>
       <section className="surface">
-        <h2>Pieces</h2>
-        <p>
-          Western labels use G, A, E, H, R, C, and S. Traditional mode uses
-          Chinese characters.
-        </p>
-        <div className="segmented" role="radiogroup" aria-label="Piece display">
+        <h2>{t("settings.pieces")}</h2>
+        <p>{t("settings.piecesCopy")}</p>
+        <div
+          className="segmented"
+          role="radiogroup"
+          aria-label={t("settings.pieceDisplay")}
+        >
           <button
             type="button"
             role="radio"
             aria-checked={prefs.pieces === "western"}
             onClick={() => setPrefs({ ...prefs, pieces: "western" })}
           >
-            G&nbsp; General
+            {t("settings.general")}
           </button>
           <button
             type="button"
@@ -58,30 +84,30 @@ export function SettingsForm() {
             aria-checked={prefs.pieces === "traditional"}
             onClick={() => setPrefs({ ...prefs, pieces: "traditional" })}
           >
-            帥&nbsp; Traditional
+            {t("settings.traditional")}
           </button>
         </div>
       </section>
       <section className="surface">
-        <h2>Board aids</h2>
+        <h2>{t("settings.boardAids")}</h2>
         <Toggle
-          label="Show file and rank coordinates"
+          label={t("settings.coordinates")}
           checked={prefs.coordinates}
           onChange={(coordinates) => setPrefs({ ...prefs, coordinates })}
         />
         <Toggle
-          label="Play move and clock sounds"
+          label={t("settings.sound")}
           checked={prefs.sound}
           onChange={(sound) => setPrefs({ ...prefs, sound })}
         />
         <Toggle
-          label="Use interface motion"
+          label={t("settings.motion")}
           checked={prefs.motion}
           onChange={(motion) => setPrefs({ ...prefs, motion })}
         />
       </section>
       <button className="button button-primary" type="button" onClick={save}>
-        {saved ? "Saved on this device ✓" : "Save preferences"}
+        {saved ? t("settings.saved") : t("settings.save")}
       </button>
     </div>
   );

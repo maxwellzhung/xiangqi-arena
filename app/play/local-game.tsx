@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   applyMove,
   createInitialPosition,
+  explainMove,
   formatMove,
   generateLegalMoves,
   getGameStatus,
@@ -13,13 +14,14 @@ import {
   type Position,
   type Square,
 } from "@/packages/xiangqi-engine/src";
-import { XiangqiBoard } from "./xiangqi-board";
+import { squareName, XiangqiBoard } from "./xiangqi-board";
 
 type HistoryItem = {
   move: Move;
   label: string;
   captured: string | null;
   position: Position;
+  gaveCheck: boolean;
 };
 type Dialog = "resign" | "draw" | null;
 
@@ -35,6 +37,8 @@ export function LocalGame({ onExit }: { onExit?: () => void }) {
   const [orientation, setOrientation] = useState<"red" | "black">("red");
   const [dialog, setDialog] = useState<Dialog>(null);
   const [manualResult, setManualResult] = useState<string | null>(null);
+  const [guideEnabled, setGuideEnabled] = useState(true);
+  const [moveFeedback, setMoveFeedback] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState(
     "Red to move. Select a piece.",
   );
@@ -63,12 +67,25 @@ export function LocalGame({ onExit }: { onExit?: () => void }) {
     const piece = getPiece(position, square);
     if (piece?.color === position.turn) {
       setSelected(square);
+      setMoveFeedback(null);
       setAnnouncement(
-        `${piece.color} ${piece.type} selected. ${generateLegalMoves(position, square).length} legal destinations.`,
+        `${piece.color} ${piece.type} on ${squareName(square)} selected. ${generateLegalMoves(position, square).length} legal destinations.`,
       );
     } else {
       setSelected(null);
+      setMoveFeedback(
+        piece
+          ? `It is ${position.turn === "red" ? "Red" : "Black"}’s turn. Choose a ${position.turn} piece.`
+          : `${squareName(square)} is empty. Choose a ${position.turn} piece first.`,
+      );
     }
+  }
+  function rejectMove(from: Square | null, to: Square) {
+    const feedback = from
+      ? explainMove(position, { from, to }).message
+      : `It is ${position.turn === "red" ? "Red" : "Black"}’s turn. Choose a ${position.turn} piece.`;
+    setMoveFeedback(feedback);
+    setAnnouncement(`Move not allowed. ${feedback}`);
   }
   function makeMove(move: Move) {
     if (terminal) return;
@@ -76,14 +93,6 @@ export function LocalGame({ onExit }: { onExit?: () => void }) {
     const captured = getPiece(position, move.to);
     const label = formatMove(position, move, "western");
     const next = applyMove(position, move);
-    setPositionHistory([...positionHistory, position]);
-    setPosition(next);
-    setHistory([
-      ...history,
-      { move, label, captured: captured?.type ?? null, position: next },
-    ]);
-    setLastMove(move);
-    setSelected(null);
     const check = (() => {
       try {
         return isInCheck(next, next.turn);
@@ -91,6 +100,21 @@ export function LocalGame({ onExit }: { onExit?: () => void }) {
         return false;
       }
     })();
+    setPositionHistory([...positionHistory, position]);
+    setPosition(next);
+    setHistory([
+      ...history,
+      {
+        move,
+        label,
+        captured: captured?.type ?? null,
+        position: next,
+        gaveCheck: check,
+      },
+    ]);
+    setLastMove(move);
+    setSelected(null);
+    setMoveFeedback(null);
     setAnnouncement(
       `${piece?.color} ${piece?.type} moved ${label}.${captured ? ` Captured ${captured.color} ${captured.type}.` : ""}${check ? ` ${next.turn} is in check.` : ` ${next.turn} to move.`}`,
     );
@@ -102,6 +126,7 @@ export function LocalGame({ onExit }: { onExit?: () => void }) {
     setSelected(null);
     setLastMove(null);
     setManualResult(null);
+    setMoveFeedback(null);
     setAnnouncement("New game. Red to move.");
     setDialog(null);
   }
@@ -116,6 +141,7 @@ export function LocalGame({ onExit }: { onExit?: () => void }) {
     (status?.isTerminal
       ? `${status.winner === "red" ? "Red" : "Black"} wins by ${status.terminationReason}.`
       : `${position.turn === "red" ? "Red" : "Black"} to move${status?.inCheck ? " · Check" : ""}`);
+  const guide = getFirstGameGuide(position, selected, history.length);
 
   return (
     <div className="local-game">
@@ -129,6 +155,13 @@ export function LocalGame({ onExit }: { onExit?: () => void }) {
           <span className="status-chip">LOCAL · CASUAL</span>
         </div>
         <div className="game-toolbar">
+          <button
+            type="button"
+            aria-pressed={guideEnabled}
+            onClick={() => setGuideEnabled(!guideEnabled)}
+          >
+            {guideEnabled ? "✓ Guide on" : "Guide off"}
+          </button>
           <button
             type="button"
             onClick={() =>
@@ -149,6 +182,31 @@ export function LocalGame({ onExit }: { onExit?: () => void }) {
             {pieceStyle === "western" ? "帥 Traditional" : "G Western"}
           </button>
         </div>
+      </div>
+      <div className="piece-key" aria-label="Western piece key">
+        <b>PIECE KEY</b>
+        <span>
+          <i>G</i> General
+        </span>
+        <span>
+          <i>A</i> Advisor
+        </span>
+        <span>
+          <i>E</i> Elephant
+        </span>
+        <span>
+          <i>H</i> Horse
+        </span>
+        <span>
+          <i>R</i> Rook
+        </span>
+        <span>
+          <i>C</i> Cannon
+        </span>
+        <span>
+          <i>S</i> Soldier
+        </span>
+        <small>Coordinates use files a–i and ranks 0–9.</small>
       </div>
       <div className="game-layout">
         <aside className="player-column">
@@ -180,6 +238,46 @@ export function LocalGame({ onExit }: { onExit?: () => void }) {
           />
         </aside>
         <div>
+          {guideEnabled && !terminal && (
+            <section className="first-game-guide" aria-live="polite">
+              <span>{Math.min(history.length + 1, 4)} / 4</span>
+              <div>
+                <b>{guide.title}</b>
+                <p>{guide.copy}</p>
+              </div>
+              <button
+                type="button"
+                aria-label="Hide first-game guide"
+                onClick={() => setGuideEnabled(false)}
+              >
+                ×
+              </button>
+            </section>
+          )}
+          <div className={`turn-banner${status?.inCheck ? " in-check" : ""}`}>
+            <b>{statusText}</b>
+            <span>
+              {selected
+                ? `${squareName(selected)} selected · choose a green destination`
+                : "Select a piece, then a highlighted destination"}
+            </span>
+          </div>
+          {moveFeedback && (
+            <div className="move-feedback" role="alert">
+              <span aria-hidden="true">!</span>
+              <p>
+                <b>That move is not legal</b>
+                {moveFeedback}
+              </p>
+              <button
+                type="button"
+                aria-label="Dismiss move explanation"
+                onClick={() => setMoveFeedback(null)}
+              >
+                ×
+              </button>
+            </div>
+          )}
           <XiangqiBoard
             position={position}
             selected={selected}
@@ -189,12 +287,14 @@ export function LocalGame({ onExit }: { onExit?: () => void }) {
             orientation={orientation}
             onSelect={chooseSquare}
             onMove={makeMove}
+            onReject={rejectMove}
             disabled={terminal}
           />
           {terminal && (
             <div className="game-result" role="status">
               <p className="eyebrow">GAME OVER</p>
               <h2>{statusText}</h2>
+              <PostGameInsights history={history} />
               <button
                 className="button button-primary"
                 type="button"
@@ -218,7 +318,9 @@ export function LocalGame({ onExit }: { onExit?: () => void }) {
                 <li key={index}>
                   <span>{index + 1}</span>
                   <b>{item.label}</b>
-                  {item.captured && <small>capture</small>}
+                  {(item.captured || item.gaveCheck) && (
+                    <small>{item.captured ? "capture" : "check"}</small>
+                  )}
                 </li>
               ))
             )}
@@ -287,6 +389,95 @@ export function LocalGame({ onExit }: { onExit?: () => void }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function getFirstGameGuide(
+  position: Position,
+  selected: Square | null,
+  moveCount: number,
+) {
+  if (moveCount === 0 && !selected) {
+    return {
+      title: "Start with a Soldier",
+      copy: "Red moves first. Select any S piece; green dots show every legal destination.",
+    };
+  }
+  if (moveCount === 0) {
+    const piece = selected ? getPiece(position, selected) : null;
+    return {
+      title: `${piece ? `${piece.type[0].toUpperCase()}${piece.type.slice(1)}` : "Piece"} selected`,
+      copy: "Choose a green dot. A ring around an enemy piece means it can be captured.",
+    };
+  }
+  if (moveCount === 1) {
+    return {
+      title: "Black replies",
+      copy: "Try a Horse (H). It moves like a knight, but a neighboring piece can block its first straight step.",
+    };
+  }
+  if (moveCount < 4) {
+    return {
+      title: "Open a Cannon line",
+      copy: "Cannons move like Rooks. To capture, they must jump exactly one intervening piece called a screen.",
+    };
+  }
+  return {
+    title: "You have the essentials",
+    copy: "Keep both Generals safe, develop Rooks and Cannons, and use the move explanations whenever a rule surprises you.",
+  };
+}
+
+function PostGameInsights({ history }: { history: HistoryItem[] }) {
+  const redCaptures = history.filter(
+    (item) => item.captured && item.position.turn === "black",
+  ).length;
+  const blackCaptures = history.filter(
+    (item) => item.captured && item.position.turn === "red",
+  ).length;
+  const checks = history.filter((item) => item.gaveCheck).length;
+  const developed = new Set(
+    history
+      .filter((item) => {
+        const mover = item.position.turn === "black" ? "red" : "black";
+        return (
+          item.move.from.row === (mover === "red" ? 9 : 0) &&
+          item.move.from.column !== 4
+        );
+      })
+      .map(
+        (item) =>
+          `${item.position.turn}-${item.move.from.column}-${item.move.from.row}`,
+      ),
+  ).size;
+  return (
+    <div className="post-game-insights" aria-label="Game insights">
+      <div>
+        <strong>{history.length}</strong>
+        <span>moves played</span>
+      </div>
+      <div>
+        <strong>
+          {redCaptures}–{blackCaptures}
+        </strong>
+        <span>captures · Red–Black</span>
+      </div>
+      <div>
+        <strong>{checks}</strong>
+        <span>checks created</span>
+      </div>
+      <div>
+        <strong>{developed}</strong>
+        <span>back-rank pieces developed</span>
+      </div>
+      <p>
+        {history.length < 8
+          ? "Short game: review the final move and check whether a General was exposed early."
+          : checks === 0
+            ? "No checks appeared. Look for ways to activate a Rook or build a Cannon screen sooner."
+            : "Use the move list to revisit each check and look for a safer reply."}
+      </p>
     </div>
   );
 }

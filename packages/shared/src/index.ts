@@ -34,6 +34,15 @@ export const timeControlSchema = z
   })
   .strict();
 
+export const publicPlayerSchema = z
+  .object({
+    id: z.string().min(1),
+    displayName: z.string().min(1).max(64),
+    kind: z.enum(["user", "guest"]),
+    rating: z.number().int(),
+  })
+  .strict();
+
 const commandBase = z.object({ commandId: z.string().uuid() }).strict();
 const gameCommandBase = z
   .object({
@@ -89,43 +98,149 @@ export type TerminationReason =
   | "draw-agreement"
   | "repetition";
 
-export interface AuthoritativeClock {
-  redMs: number;
-  blackMs: number;
-  running: Color | null;
-  measuredAt: number;
-}
+export const authoritativeClockSchema = z
+  .object({
+    redMs: z.number().int().nonnegative(),
+    blackMs: z.number().int().nonnegative(),
+    running: z.enum(colors).nullable(),
+    measuredAt: z.number().int().nonnegative(),
+  })
+  .strict();
 
-export interface GameSnapshot {
-  gameId: string;
-  version: number;
-  moveSequence: number;
-  currentTurn: Color;
-  serializedPosition: string;
-  clock: AuthoritativeClock;
-  status: "waiting" | "active" | "completed";
-  result: GameResult | null;
-  terminationReason: TerminationReason | null;
-}
+export const publicMoveSchema = z
+  .object({
+    sequence: z.number().int().positive(),
+    color: z.enum(colors),
+    move: moveSchema,
+    capturedPiece: z.enum(pieceTypes).nullable(),
+  })
+  .strict();
 
-export type ServerEvent =
-  | { type: "roomCreated"; roomCode: string; joinUrl: string }
-  | { type: "roomJoined"; gameId: string; color: Color }
-  | { type: "matchFound"; gameId: string; color: Color }
-  | { type: "stateSnapshot"; snapshot: GameSnapshot }
-  | { type: "moveAccepted"; commandId: string; snapshot: GameSnapshot }
-  | {
-      type: "moveRejected";
-      commandId: string;
-      reason: string;
-      snapshot?: GameSnapshot;
-    }
-  | { type: "clockSync"; gameId: string; clock: AuthoritativeClock }
-  | {
-      type: "drawOffered" | "drawOfferCancelled" | "rematchRequested";
-      gameId: string;
-    }
-  | { type: "opponentDisconnected"; gameId: string; graceEndsAt: number }
-  | { type: "opponentReconnected"; gameId: string }
-  | { type: "gameEnded"; snapshot: GameSnapshot }
-  | { type: "protocolError"; code: string; message: string };
+export const gameSnapshotSchema = z
+  .object({
+    gameId: z.string().min(8),
+    version: z.number().int().nonnegative(),
+    moveSequence: z.number().int().nonnegative(),
+    currentTurn: z.enum(colors),
+    serializedPosition: z.string().min(1),
+    clock: authoritativeClockSchema,
+    status: z.enum(["waiting", "active", "completed"]),
+    result: z.enum(["red-win", "black-win", "draw"]).nullable(),
+    terminationReason: z
+      .enum([
+        "checkmate",
+        "stalemate",
+        "resignation",
+        "timeout",
+        "draw-agreement",
+        "repetition",
+      ])
+      .nullable(),
+    timeControlId: z.enum(timeControlIds),
+    rated: z.boolean(),
+    redPlayer: publicPlayerSchema,
+    blackPlayer: publicPlayerSchema,
+    drawOfferedBy: z.enum(colors).nullable(),
+    rematchRequestedBy: z.enum(colors).nullable(),
+    moves: z.array(publicMoveSchema),
+  })
+  .strict();
+
+export const serverEventSchema = z.discriminatedUnion("type", [
+  z
+    .object({
+      type: z.literal("roomCreated"),
+      roomCode: z.string().regex(/^[A-Z2-9]{6}$/),
+      joinUrl: z.string().url(),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("roomJoined"),
+      gameId: z.string().min(8),
+      color: z.enum(colors),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("matchFound"),
+      gameId: z.string().min(8),
+      color: z.enum(colors),
+    })
+    .strict(),
+  z
+    .object({ type: z.literal("stateSnapshot"), snapshot: gameSnapshotSchema })
+    .strict(),
+  z
+    .object({
+      type: z.literal("moveAccepted"),
+      commandId: z.string().uuid(),
+      snapshot: gameSnapshotSchema,
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("moveRejected"),
+      commandId: z.string().uuid(),
+      reason: z.string().min(1),
+      snapshot: gameSnapshotSchema.optional(),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("clockSync"),
+      gameId: z.string().min(8),
+      clock: authoritativeClockSchema,
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("drawOffered"),
+      gameId: z.string().min(8),
+      snapshot: gameSnapshotSchema,
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("drawOfferCancelled"),
+      gameId: z.string().min(8),
+      snapshot: gameSnapshotSchema,
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("rematchRequested"),
+      gameId: z.string().min(8),
+      snapshot: gameSnapshotSchema,
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("opponentDisconnected"),
+      gameId: z.string().min(8),
+      graceEndsAt: z.number().int().nonnegative(),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("opponentReconnected"),
+      gameId: z.string().min(8),
+    })
+    .strict(),
+  z
+    .object({ type: z.literal("gameEnded"), snapshot: gameSnapshotSchema })
+    .strict(),
+  z
+    .object({
+      type: z.literal("protocolError"),
+      code: z.string().min(1),
+      message: z.string().min(1),
+    })
+    .strict(),
+]);
+
+export type PublicPlayer = z.infer<typeof publicPlayerSchema>;
+export type AuthoritativeClock = z.infer<typeof authoritativeClockSchema>;
+export type PublicMove = z.infer<typeof publicMoveSchema>;
+export type GameSnapshot = z.infer<typeof gameSnapshotSchema>;
+export type ServerEvent = z.infer<typeof serverEventSchema>;

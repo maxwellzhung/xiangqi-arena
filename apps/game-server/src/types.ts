@@ -3,6 +3,7 @@ import type {
   Color,
   GameResult,
   GameSnapshot,
+  PieceType,
   TerminationReason,
   TimeControlId,
 } from "@xiangqi-arena/shared";
@@ -43,7 +44,7 @@ export interface StoredMove {
   sequence: number;
   color: Color;
   move: Move;
-  capturedPiece: string | null;
+  capturedPiece: PieceType | null;
   positionAfter: string;
   positionHash: string;
   clock: AuthoritativeClock;
@@ -82,7 +83,7 @@ export interface EngineMoveAccepted {
   serializedPosition: string;
   positionHash: string;
   currentTurn: Color;
-  capturedPiece: string | null;
+  capturedPiece: PieceType | null;
   terminal: null | {
     result: GameResult;
     reason: TerminationReason;

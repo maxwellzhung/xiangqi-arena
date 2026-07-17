@@ -1,5 +1,6 @@
 "use client";
 
+import { useId, useRef, useState } from "react";
 import type { Move, Position, Square } from "@/packages/xiangqi-engine/src";
 import { getPiece, isInCheck } from "@/packages/xiangqi-engine/src";
 
@@ -31,6 +32,10 @@ const blackTraditional: Record<string, string> = {
   soldier: "卒",
 };
 
+export function squareName(square: Square) {
+  return `${String.fromCharCode(97 + square.column)}${9 - square.row}`;
+}
+
 export function XiangqiBoard({
   position,
   selected,
@@ -40,6 +45,8 @@ export function XiangqiBoard({
   orientation = "red",
   onSelect,
   onMove,
+  onReject,
+  hintSquares = [],
   disabled = false,
 }: {
   position: Position;
@@ -50,8 +57,14 @@ export function XiangqiBoard({
   orientation?: "red" | "black";
   onSelect?: (square: Square) => void;
   onMove?: (move: Move) => void;
+  onReject?: (from: Square | null, to: Square) => void;
+  hintSquares?: readonly Square[];
   disabled?: boolean;
 }) {
+  const instructionsId = useId();
+  const cellRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const defaultFocusIndex = position.turn === "red" ? 85 : 4;
+  const [focusIndex, setFocusIndex] = useState(defaultFocusIndex);
   const squares = Array.from({ length: 90 }, (_, index) => ({
     column: index % 9,
     row: Math.floor(index / 9),
@@ -70,77 +83,142 @@ export function XiangqiBoard({
     return legalMoves.find((move) => isSame(move.to, square));
   }
   function activate(square: Square) {
+    if (disabled) return;
     const destination = destinationFor(square);
     if (destination && onMove) onMove(destination);
-    else onSelect?.(square);
+    else {
+      const piece = getPiece(position, square);
+      if (
+        selected &&
+        (!piece || piece.color !== position.turn) &&
+        !isSame(selected, square)
+      ) {
+        onReject?.(selected, square);
+        return;
+      }
+      if (!selected && piece && piece.color !== position.turn) {
+        onReject?.(null, square);
+        return;
+      }
+      onSelect?.(square);
+    }
   }
+  function moveFocus(index: number, event: React.KeyboardEvent) {
+    const square = squares[index];
+    const visualDirection = orientation === "red" ? 1 : -1;
+    let nextColumn = square.column;
+    let nextRow = square.row;
+    if (event.key === "ArrowLeft") nextColumn -= visualDirection;
+    else if (event.key === "ArrowRight") nextColumn += visualDirection;
+    else if (event.key === "ArrowUp") nextRow -= visualDirection;
+    else if (event.key === "ArrowDown") nextRow += visualDirection;
+    else if (event.key === "Home") nextColumn = orientation === "red" ? 0 : 8;
+    else if (event.key === "End") nextColumn = orientation === "red" ? 8 : 0;
+    else return;
+    event.preventDefault();
+    if (nextColumn < 0 || nextColumn > 8 || nextRow < 0 || nextRow > 9) return;
+    const nextIndex = nextRow * 9 + nextColumn;
+    setFocusIndex(nextIndex);
+    cellRefs.current[nextIndex]?.focus();
+  }
+  const fileLabels = Array.from({ length: 9 }, (_, index) =>
+    String.fromCharCode(97 + (orientation === "red" ? index : 8 - index)),
+  );
+  const rankLabels = Array.from({ length: 10 }, (_, index) =>
+    orientation === "red" ? 9 - index : index,
+  );
   return (
     <div className={`game-board-frame orientation-${orientation}`}>
       <div className="board-label board-label-top">
         {orientation === "red" ? "BLACK" : "RED"}
       </div>
-      <div
-        className="game-board"
-        role="grid"
-        aria-label={`Xiangqi board, ${position.turn} to move${currentInCheck ? ", in check" : ""}`}
-      >
-        <span className="game-river" aria-hidden="true">
-          <i>楚河</i>
-          <b>RIVER</b>
-          <i>漢界</i>
-        </span>
-        <i className="palace palace-top" aria-hidden="true" />
-        <i className="palace palace-bottom" aria-hidden="true" />
-        {squares.map((square) => {
-          const piece = getPiece(position, square);
-          const destination = destinationFor(square);
-          const selectedNow = isSame(selected, square);
-          const last =
-            isSame(lastMove?.from, square) || isSame(lastMove?.to, square);
-          const chars =
-            styleMode === "traditional"
-              ? traditional[piece?.type ?? ""]
-              : english[piece?.type ?? ""];
-          const label = piece
-            ? styleMode === "traditional" && piece.color === "black"
-              ? blackTraditional[piece.type]
-              : chars?.[0]
-            : "";
-          const name = piece ? english[piece.type][1] : "Empty";
-          const file = String.fromCharCode(65 + square.column);
-          const rank = 10 - square.row;
-          return (
-            <button
-              key={`${square.column}-${square.row}`}
-              type="button"
-              role="gridcell"
-              className={`board-point${piece ? ` occupied ${piece.color}` : ""}${selectedNow ? " selected" : ""}${destination ? " legal" : ""}${last ? " last-move" : ""}`}
-              style={{
-                left: `${(square.column / 8) * 100}%`,
-                top: `${(square.row / 9) * 100}%`,
-              }}
-              aria-label={`${piece ? `${piece.color} ${name}` : "Empty intersection"}, file ${file}, rank ${rank}${selectedNow ? ", selected" : ""}${destination ? ", legal destination" : ""}`}
-              aria-selected={selectedNow}
-              disabled={disabled}
-              draggable={!!piece && !disabled}
-              onDragStart={() => onSelect?.(square)}
-              onDragOver={(event) => {
-                if (destination) event.preventDefault();
-              }}
-              onDrop={() => {
-                if (destination && onMove) onMove(destination);
-              }}
-              onClick={() => activate(square)}
-            >
-              <span className="legal-dot" aria-hidden="true" />
-              {piece && (
-                <span className="piece-face" aria-hidden="true">
-                  {label}
-                </span>
-              )}
-            </button>
-          );
-        })}
+      <p className="sr-only" id={instructionsId}>
+        Use the arrow keys to move between intersections. Press Enter or Space
+        to select a piece, then choose a highlighted legal destination.
+      </p>
+      <div className="game-board-area">
+        <div className="board-files" aria-hidden="true">
+          {fileLabels.map((label, index) => (
+            <span key={`${label}-${index}`}>{label}</span>
+          ))}
+        </div>
+        <div className="board-ranks" aria-hidden="true">
+          {rankLabels.map((label, index) => (
+            <span key={`${label}-${index}`}>{label}</span>
+          ))}
+        </div>
+        <div
+          className="game-board"
+          role="grid"
+          aria-describedby={instructionsId}
+          aria-label={`Xiangqi board, ${position.turn} to move${currentInCheck ? ", in check" : ""}`}
+        >
+          <span className="game-river" aria-hidden="true">
+            <i>楚河</i>
+            <b>RIVER</b>
+            <i>漢界</i>
+          </span>
+          <i className="palace palace-top" aria-hidden="true" />
+          <i className="palace palace-bottom" aria-hidden="true" />
+          {squares.map((square, index) => {
+            const piece = getPiece(position, square);
+            const destination = destinationFor(square);
+            const selectedNow = isSame(selected, square);
+            const hinted = hintSquares.some((hint) => isSame(hint, square));
+            const last =
+              isSame(lastMove?.from, square) || isSame(lastMove?.to, square);
+            const chars =
+              styleMode === "traditional"
+                ? traditional[piece?.type ?? ""]
+                : english[piece?.type ?? ""];
+            const label = piece
+              ? styleMode === "traditional" && piece.color === "black"
+                ? blackTraditional[piece.type]
+                : chars?.[0]
+              : "";
+            const name = piece ? english[piece.type][1] : "Empty";
+            const coordinate = squareName(square);
+            return (
+              <button
+                key={`${square.column}-${square.row}`}
+                ref={(node) => {
+                  cellRefs.current[index] = node;
+                }}
+                type="button"
+                role="gridcell"
+                className={`board-point${piece ? ` occupied ${piece.color}` : ""}${selectedNow ? " selected" : ""}${destination ? " legal" : ""}${last ? " last-move" : ""}${hinted ? " hinted" : ""}`}
+                style={{
+                  left: `${(square.column / 8) * 100}%`,
+                  top: `${(square.row / 9) * 100}%`,
+                }}
+                aria-label={`${piece ? `${piece.color} ${name}` : "Empty intersection"}, coordinate ${coordinate}${selectedNow ? ", selected" : ""}${destination ? ", legal destination" : ""}${hinted ? ", hint" : ""}`}
+                aria-selected={selectedNow}
+                aria-disabled={disabled}
+                tabIndex={index === focusIndex ? 0 : -1}
+                draggable={!!piece && !disabled}
+                onFocus={() => setFocusIndex(index)}
+                onKeyDown={(event) => moveFocus(index, event)}
+                onDragStart={() => {
+                  if (!disabled) onSelect?.(square);
+                }}
+                onDragOver={(event) => {
+                  if (destination) event.preventDefault();
+                }}
+                onDrop={() => {
+                  if (destination && onMove) onMove(destination);
+                }}
+                onClick={() => activate(square)}
+              >
+                <span className="legal-dot" aria-hidden="true" />
+                {piece && (
+                  <span className="piece-face" aria-hidden="true">
+                    {label}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
       <div className="board-label board-label-bottom">
         {orientation === "red" ? "RED · YOU" : "BLACK · YOU"}

@@ -8,6 +8,7 @@ import {
   createPosition,
   createPositionHash,
   deserializePosition,
+  explainMove,
   formatMove,
   generateLegalMoves,
   generatePseudoLegalMoves,
@@ -115,6 +116,46 @@ describe("position construction and validation", () => {
 });
 
 describe("turns, captures, and global legality", () => {
+  it("explains common illegal moves with stable player-facing reasons", () => {
+    const initial = createInitialPosition();
+    expect(explainMove(initial, mv(0, 0, 0, 1))).toMatchObject({
+      legal: false,
+      code: "wrong-turn",
+    });
+    expect(explainMove(initial, mv(0, 6, 0, 7))).toMatchObject({
+      legal: false,
+      code: "soldier-direction",
+    });
+    expect(explainMove(initial, mv(1, 9, 3, 8))).toMatchObject({
+      legal: false,
+      code: "horse-leg",
+    });
+    expect(explainMove(initial, mv(0, 6, 0, 5))).toEqual({
+      legal: true,
+      code: "legal",
+      message: "Legal move.",
+    });
+
+    const cannon = withSafeGenerals([
+      { color: "red", type: "cannon", column: 4, row: 5 },
+      { color: "black", type: "rook", column: 4, row: 1 },
+    ]);
+    expect(explainMove(cannon, mv(4, 5, 4, 1))).toMatchObject({
+      legal: false,
+      code: "cannon-screen",
+    });
+
+    const exposed = createPosition([
+      { color: "black", type: "general", column: 4, row: 0 },
+      { color: "red", type: "rook", column: 4, row: 5 },
+      { color: "red", type: "general", column: 4, row: 9 },
+    ]);
+    expect(explainMove(exposed, mv(4, 5, 3, 5))).toMatchObject({
+      legal: false,
+      code: "self-check",
+    });
+  });
+
   it("enforces Red-first turn order and alternates immutable states", () => {
     const initial = createInitialPosition();
     const blackRookMove = mv(0, 0, 0, 1);
@@ -484,6 +525,46 @@ describe("check and terminal status", () => {
 });
 
 describe("serialization, hashing, notation, and repetition", () => {
+  it("preserves engine invariants across deterministic legal-play playouts", () => {
+    for (let seed = 1; seed <= 8; seed += 1) {
+      let randomState = seed * 0x9e3779b1;
+      const nextRandom = () => {
+        randomState ^= randomState << 13;
+        randomState ^= randomState >>> 17;
+        randomState ^= randomState << 5;
+        return randomState >>> 0;
+      };
+      let position = createInitialPosition();
+      const hashes = new Set<string>();
+
+      for (let ply = 0; ply < 80; ply += 1) {
+        const validation = validatePosition(position, {
+          requireBothGenerals: false,
+        });
+        expect(validation.errors, `seed ${seed}, ply ${ply}`).toEqual([]);
+        const serialized = serializePosition(position);
+        expect(deserializePosition(serialized)).toEqual(position);
+        expect(createPositionHash(position)).toBe(hashString(serialized));
+        hashes.add(createPositionHash(position));
+
+        const moves = generateLegalMoves(position);
+        if (moves.length === 0) break;
+        for (const candidate of moves.slice(0, 5)) {
+          expect(isLegalMove(position, candidate)).toBe(true);
+        }
+        const turn = position.turn;
+        const chosen = moves[nextRandom() % moves.length];
+        const next = applyMove(position, chosen);
+        expect(next.turn).toBe(turn === "red" ? "black" : "red");
+        expect(Object.isFrozen(next)).toBe(true);
+        expect(Object.isFrozen(next.board)).toBe(true);
+        position = next;
+      }
+
+      expect(hashes.size).toBeGreaterThan(5);
+    }
+  });
+
   it("round-trips stable serialization", () => {
     const initial = createInitialPosition();
     const value = serializePosition(initial);

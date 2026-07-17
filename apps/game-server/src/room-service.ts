@@ -61,7 +61,7 @@ export class PrivateRoomService {
     });
     return {
       roomCode: code,
-      joinUrl: new URL(`/play/private/${code}`, this.publicOrigin).toString(),
+      joinUrl: new URL(`/game/${code}?join=1`, this.publicOrigin).toString(),
     };
   }
 

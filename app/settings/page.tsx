@@ -9,7 +9,10 @@ export default function SettingsPage() {
       <PageIntro
         eyebrow="YOUR DEVICE"
         title="Make the board yours"
-        copy="Display and sound choices are saved only on this device. They never affect game rules or server authority."
+        copy="Display, language, and sound choices are saved only on this device. They never affect game rules or server authority."
+        eyebrowKey="intro.settings.eyebrow"
+        titleKey="intro.settings.title"
+        copyKey="intro.settings.copy"
       />
       <SettingsForm />
     </AppPage>

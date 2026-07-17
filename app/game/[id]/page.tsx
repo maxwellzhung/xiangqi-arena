@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { AppPage } from "../../components/site-chrome";
-import { LocalGame } from "../../play/local-game";
+import { OnlineGameClient } from "./online-game-client";
 
 export const metadata: Metadata = { title: "Active Game" };
 export default async function GamePage({
@@ -13,13 +13,13 @@ export default async function GamePage({
     <AppPage>
       <div className="game-page-heading">
         <p className="eyebrow">ROOM {id.toUpperCase()}</p>
-        <h1>Practice board</h1>
+        <h1>Live Xiangqi game</h1>
         <p>
-          This hosted preview runs the complete rules engine locally. Connect
-          the realtime service for a shared private room.
+          The game service validates every move, owns both clocks, and restores
+          the latest version after a connection interruption.
         </p>
       </div>
-      <LocalGame />
+      <OnlineGameClient roomOrGameId={id} />
     </AppPage>
   );
 }

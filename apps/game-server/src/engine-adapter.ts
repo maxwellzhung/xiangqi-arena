@@ -4,6 +4,7 @@ import {
   createInitialPosition,
   createPositionHash,
   deserializePosition,
+  explainMove,
   getGameStatus,
   getPiece,
   serializePosition,
@@ -33,7 +34,7 @@ export const xiangqiRulesEngine: RulesEngine = {
         serializedPosition: serializePosition(next),
         positionHash: createPositionHash(next),
         currentTurn: next.turn,
-        capturedPiece: captured ? `${captured.color}-${captured.type}` : null,
+        capturedPiece: captured?.type ?? null,
         terminal:
           status.isTerminal && status.result && status.terminationReason
             ? { result: status.result, reason: status.terminationReason }
@@ -43,7 +44,7 @@ export const xiangqiRulesEngine: RulesEngine = {
       if (error instanceof IllegalMoveError) {
         return {
           accepted: false,
-          reason: "That move is not legal in the current position.",
+          reason: explainMove(position, move).message,
         };
       }
       throw error;

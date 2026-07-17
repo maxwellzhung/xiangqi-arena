@@ -19,6 +19,9 @@ export default function LeaderboardPage() {
         eyebrow="RATED 10+0 · THIS SEASON"
         title="The Arena leaderboard"
         copy="Ratings begin at 1500 and update only after completed rated games. Guest and casual games never affect the table."
+        eyebrowKey="intro.leaderboard.eyebrow"
+        titleKey="intro.leaderboard.title"
+        copyKey="intro.leaderboard.copy"
       />
       <div className="leaderboard surface">
         <div className="table-head">

@@ -3,16 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { LanguageSelect, type TranslationKey, useLanguage } from "../i18n";
 
 const navItems = [
-  ["/play", "Play"],
-  ["/learn", "Learn"],
-  ["/leaderboard", "Leaderboard"],
+  ["/play", "nav.play"],
+  ["/learn", "nav.learn"],
+  ["/leaderboard", "nav.leaderboard"],
 ] as const;
 
 export function Brand() {
+  const { t } = useLanguage();
   return (
-    <Link href="/" className="brand" aria-label="Xiangqi Arena home">
+    <Link href="/" className="brand" aria-label={t("brand.home")}>
       <span className="brand-mark" aria-hidden="true">
         <i />
         <i />
@@ -27,6 +29,7 @@ export function Brand() {
 export function SiteHeader() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const { t } = useLanguage();
   return (
     <header className="site-header">
       <Brand />
@@ -37,34 +40,39 @@ export function SiteHeader() {
         aria-controls="site-nav"
         onClick={() => setOpen(!open)}
       >
-        <span className="sr-only">Menu</span>
+        <span className="sr-only">{t("nav.menu")}</span>
         <span aria-hidden="true">☰</span>
       </button>
       <nav
         id="site-nav"
         className={open ? "site-nav open" : "site-nav"}
-        aria-label="Main navigation"
+        aria-label={t("nav.main")}
       >
-        {navItems.map(([href, label]) => (
+        {navItems.map(([href, labelKey]) => (
           <Link
             key={href}
             className={pathname.startsWith(href) ? "active" : ""}
             href={href}
             onClick={() => setOpen(false)}
           >
-            {label}
+            {t(labelKey)}
           </Link>
         ))}
       </nav>
       <div className="header-actions">
-        <Link className="icon-button" href="/settings" aria-label="Settings">
+        <LanguageSelect compact />
+        <Link
+          className="icon-button"
+          href="/settings"
+          aria-label={t("nav.settings")}
+        >
           ⚙
         </Link>
         <Link className="sign-in" href="/profile">
-          Sign in
+          {t("nav.signIn")}
         </Link>
         <Link className="button button-small button-primary" href="/play">
-          Play now
+          {t("nav.playNow")}
         </Link>
       </div>
     </header>
@@ -72,15 +80,16 @@ export function SiteHeader() {
 }
 
 export function SiteFooter() {
+  const { t } = useLanguage();
   return (
     <footer className="site-footer">
       <Brand />
-      <p>Modern Xiangqi for curious minds.</p>
-      <nav aria-label="Footer">
-        <Link href="/learn">Rules</Link>
-        <Link href="/privacy">Privacy</Link>
-        <Link href="/terms">Terms</Link>
-        <Link href="/settings">Settings</Link>
+      <p>{t("footer.tagline")}</p>
+      <nav aria-label={t("footer.navigation")}>
+        <Link href="/learn">{t("footer.rules")}</Link>
+        <Link href="/privacy">{t("footer.privacy")}</Link>
+        <Link href="/terms">{t("footer.terms")}</Link>
+        <Link href="/settings">{t("footer.settings")}</Link>
       </nav>
       <small>© 2026 Xiangqi Arena</small>
     </footer>
@@ -91,16 +100,23 @@ export function PageIntro({
   eyebrow,
   title,
   copy,
+  eyebrowKey,
+  titleKey,
+  copyKey,
 }: {
   eyebrow: string;
   title: string;
   copy: string;
+  eyebrowKey?: TranslationKey;
+  titleKey?: TranslationKey;
+  copyKey?: TranslationKey;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="page-intro">
-      <p className="eyebrow">{eyebrow}</p>
-      <h1>{title}</h1>
-      <p>{copy}</p>
+      <p className="eyebrow">{eyebrowKey ? t(eyebrowKey) : eyebrow}</p>
+      <h1>{titleKey ? t(titleKey) : title}</h1>
+      <p>{copyKey ? t(copyKey) : copy}</p>
     </div>
   );
 }

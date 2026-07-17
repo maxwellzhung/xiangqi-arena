@@ -15,6 +15,13 @@
       "when": 1784256392853,
       "tag": "0001_parallel_silverclaw",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1784266707553,
+      "tag": "0002_damp_deathbird",
+      "breakpoints": true
     }
   ]
 }

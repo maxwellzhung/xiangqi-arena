@@ -8,6 +8,9 @@ export default function TermsPage() {
         eyebrow="LEGAL TEMPLATE · 17 JULY 2026"
         title="Terms of service"
         copy="This working template covers the intended MVP. It is not legal advice and must be replaced or approved by qualified counsel before production use."
+        eyebrowKey="intro.terms.eyebrow"
+        titleKey="intro.terms.title"
+        copyKey="intro.terms.copy"
       />
       <div className="legal-banner">
         <strong>Professional review required.</strong> Governing law, operator

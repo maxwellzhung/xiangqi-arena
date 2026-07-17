@@ -26,6 +26,29 @@ export interface Move {
   readonly to: Square;
 }
 
+export type MoveLegalityCode =
+  | "legal"
+  | "outside-board"
+  | "same-square"
+  | "empty-source"
+  | "wrong-turn"
+  | "own-piece"
+  | "palace-boundary"
+  | "piece-pattern"
+  | "blocked-path"
+  | "elephant-eye"
+  | "river-boundary"
+  | "horse-leg"
+  | "cannon-screen"
+  | "soldier-direction"
+  | "self-check";
+
+export interface MoveLegalityExplanation {
+  readonly legal: boolean;
+  readonly code: MoveLegalityCode;
+  readonly message: string;
+}
+
 export interface Piece {
   readonly color: Color;
   readonly type: PieceType;

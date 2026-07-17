@@ -8,6 +8,9 @@ export default function PrivacyPage() {
         eyebrow="LEGAL TEMPLATE · 17 JULY 2026"
         title="Privacy policy"
         copy="This plain-language template describes the intended MVP data practices. It is not legal advice and must be reviewed by qualified counsel before production use."
+        eyebrowKey="intro.privacy.eyebrow"
+        titleKey="intro.privacy.title"
+        copyKey="intro.privacy.copy"
       />
       <div className="legal-banner">
         <strong>Professional review required.</strong> This template does not

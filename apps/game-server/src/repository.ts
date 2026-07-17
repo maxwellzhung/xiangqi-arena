@@ -4,6 +4,7 @@ import { PublicError } from "./errors.js";
 export interface GameRepository {
   create(game: StoredGame): Promise<void>;
   get(gameId: string): Promise<StoredGame | null>;
+  findActiveByPlayer(playerId: string): Promise<StoredGame | null>;
   withGame<T>(
     gameId: string,
     operation: (draft: StoredGame) => Promise<T> | T,
@@ -27,6 +28,17 @@ export class InMemoryGameRepository implements GameRepository {
   async get(gameId: string): Promise<StoredGame | null> {
     const game = this.games.get(gameId);
     return game ? cloneGame(game) : null;
+  }
+
+  async findActiveByPlayer(playerId: string): Promise<StoredGame | null> {
+    const matches = [...this.games.values()]
+      .filter(
+        (game) =>
+          game.status === "active" &&
+          (game.redPlayer.id === playerId || game.blackPlayer.id === playerId),
+      )
+      .sort((first, second) => second.createdAt - first.createdAt);
+    return matches[0] ? cloneGame(matches[0]) : null;
   }
 
   async withGame<T>(
