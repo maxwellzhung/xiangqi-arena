@@ -25,7 +25,7 @@ This score evaluates the playable product from the perspective of a new or retur
 - Fabricated live-player/activity data or browser-readable privileged identity tokens prevents a score of 95 or higher.
 - Without a successful deployment and hosted online smoke test of the exact validated commit, the total is capped at 94.
 
-## Candidate assessment
+## Verified assessment
 
 | Area                                   |      Score | Evidence and deduction                                                                                                                                                      |
 | -------------------------------------- | ---------: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -35,8 +35,12 @@ This score evaluates the playable product from the perspective of a new or retur
 | Interaction, mobile, and accessibility |      15/15 | Desktop/mobile board flows, hydration-safe controls, roving keyboard focus, mobile-menu keyboard access, announcements, and reduced-motion behavior are covered.            |
 | Retention and player ecosystem         |       8/10 | Real private history, replay, quick match, and post-game insights exist; registered rated play and proven matchmaking liquidity do not.                                     |
 | Trust, localization, and privacy       |        7/8 | HTTP-only same-site identity, honest metrics, English plus Chinese/Japanese infrastructure, and legal templates exist; wider European localization and legal review remain. |
-| Operations and evidence                |        6/7 | All local gates and cross-browser E2E pass; the final point requires deployment and hosted two-browser smoke validation.                                                    |
-| **Pre-deployment total**               | **94/100** | The hosted-evidence hard gate applies. A successful hosted smoke test raises operations to 7/7 and the verified total to 95/100.                                            |
+| Operations and evidence                |        7/7 | All local gates and cross-browser E2E pass; the private Sites deployment and hosted two-browser D1 smoke flow also passed.                                                  |
+| **Verified total**                     | **95/100** | All hard gates pass. The deductions below identify the highest-value route from a strong MVP toward a mature service.                                                       |
+
+## Hosted evidence
+
+The private production origin passed an isolated two-browser flow on 2026-07-17: separate guest cookies, private-room join, two authoritative moves, stale-command rejection at version 2, refresh recovery, resignation result, durable replay, and owner game history.
 
 ## Highest-value improvements after 95
 

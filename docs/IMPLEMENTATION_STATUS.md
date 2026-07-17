@@ -43,4 +43,5 @@ Updated: 2026-07-17
 - Completed — Production vinext build passed with all ten product routes.
 - Completed — Playwright browser acceptance: 10/10 passed across desktop Chromium and mobile WebKit, including local play, illegal-move guidance, roving board focus, mobile-menu keyboard navigation, and the complete two-browser online/history/replay flow.
 - Completed — Real Miniflare/D1 API flow verified separate cookie identities, room join, moves, deduplication, stale-version rejection, SSE snapshots/clocks, draw, rematch color swap, reconnect token rotation, and private history.
+- Completed — Private Sites production deployment succeeded, and its hosted D1 passed the isolated two-browser room, move, stale-version, refresh, resignation, replay, and owner-history smoke flow.
 - Blocked — Docker/Compose runtime validation was not run because Docker is unavailable in this environment.
