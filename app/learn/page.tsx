@@ -68,7 +68,7 @@ export default function LearnPage() {
       <PageIntro
         eyebrow="LEARN BY DOING · ABOUT 8 MINUTES"
         title="A familiar strategy. A different rhythm."
-        copy="Make real moves, see exactly why mistakes fail, and finish with a five-question readiness check. No account required."
+        copy="Make real moves, see exactly why mistakes fail, and finish with a five-position practical readiness check. No account required."
         eyebrowKey="intro.learn.eyebrow"
         titleKey="intro.learn.title"
         copyKey="intro.learn.copy"
