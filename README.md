@@ -7,6 +7,11 @@ The default Sites deployment serves the web product and `/api/v1/*` game API
 from one origin and persists rooms, games, moves, identities, and command
 deduplication in D1.
 
+The repository also publishes a static local-play edition on
+[GitHub Pages](https://maxwellzhung.github.io/xiangqi-arena/). It reuses the
+same rules engine and guided board, but does not expose online rooms, realtime
+events, history, or D1-backed features because GitHub Pages cannot run a server.
+
 ## Repository map
 
 ```text
@@ -92,24 +97,25 @@ use `*` for credentialed HTTP or WebSocket traffic.
 
 ## Commands
 
-| Command                           | What it does                                     |
-| --------------------------------- | ------------------------------------------------ |
-| `pnpm dev`                        | Runs the web development server                  |
-| `pnpm --dir apps/game-server dev` | Runs the realtime service in watch mode          |
-| `pnpm build`                      | Builds the production web worker/bundle          |
-| `pnpm start`                      | Starts the built web app                         |
-| `pnpm lint`                       | Runs ESLint                                      |
-| `pnpm typecheck`                  | Runs strict TypeScript checks                    |
-| `pnpm format`                     | Formats repository files                         |
-| `pnpm format:check`               | Verifies formatting without writing              |
-| `pnpm test`                       | Runs unit and integration suites                 |
-| `pnpm test:unit`                  | Runs package-level unit tests                    |
-| `pnpm test:integration`           | Runs repository integration tests                |
-| `pnpm test:e2e`                   | Runs the separate Playwright browser suite       |
-| `pnpm db:generate`                | Generates a Drizzle migration from the D1 schema |
-| `pnpm db:migrate`                 | Applies configured Drizzle migrations            |
-| `pnpm db:seed`                    | Reserved for a development seed adapter          |
-| `pnpm db:reset`                   | Reserved for a destructive development reset     |
+| Command                           | What it does                                      |
+| --------------------------------- | ------------------------------------------------- |
+| `pnpm dev`                        | Runs the web development server                   |
+| `pnpm --dir apps/game-server dev` | Runs the realtime service in watch mode           |
+| `pnpm build`                      | Builds the production web worker/bundle           |
+| `pnpm build:pages`                | Builds the static GitHub Pages local-play edition |
+| `pnpm start`                      | Starts the built web app                          |
+| `pnpm lint`                       | Runs ESLint                                       |
+| `pnpm typecheck`                  | Runs strict TypeScript checks                     |
+| `pnpm format`                     | Formats repository files                          |
+| `pnpm format:check`               | Verifies formatting without writing               |
+| `pnpm test`                       | Runs unit and integration suites                  |
+| `pnpm test:unit`                  | Runs package-level unit tests                     |
+| `pnpm test:integration`           | Runs repository integration tests                 |
+| `pnpm test:e2e`                   | Runs the separate Playwright browser suite        |
+| `pnpm db:generate`                | Generates a Drizzle migration from the D1 schema  |
+| `pnpm db:migrate`                 | Applies configured Drizzle migrations             |
+| `pnpm db:seed`                    | Reserved for a development seed adapter           |
+| `pnpm db:reset`                   | Reserved for a destructive development reset      |
 
 The root Drizzle schema targets Sites/D1. Inspect a generated migration before
 applying it. `db:seed` and `db:reset` are script contracts, but their adapters
