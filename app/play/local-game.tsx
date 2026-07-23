@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import {
   applyMove,
   choosePracticeMove,
@@ -13,8 +13,10 @@ import {
   isInCheck,
   type Move,
   type Position,
+  type PracticeDifficulty,
   type Square,
 } from "@/packages/xiangqi-engine/src";
+import { useLanguage } from "../i18n";
 import { squareName, XiangqiBoard } from "./xiangqi-board";
 
 type HistoryItem = {
@@ -26,6 +28,14 @@ type HistoryItem = {
 };
 type Dialog = "resign" | "draw" | null;
 
+const AI_DIFFICULTY_STORAGE_KEY = "xiangqi-arena-ai-difficulty";
+
+function isPracticeDifficulty(
+  value: string | null,
+): value is PracticeDifficulty {
+  return value === "beginner" || value === "standard" || value === "expert";
+}
+
 export function LocalGame({
   onExit,
   solo = false,
@@ -33,6 +43,7 @@ export function LocalGame({
   onExit?: () => void;
   solo?: boolean;
 }) {
+  const { t } = useLanguage();
   const [position, setPosition] = useState(() => createInitialPosition());
   const [positionHistory, setPositionHistory] = useState<Position[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -48,10 +59,13 @@ export function LocalGame({
   const [moveFeedback, setMoveFeedback] = useState<string | null>(null);
   const [coachNote, setCoachNote] = useState<string | null>(null);
   const [hintMove, setHintMove] = useState<Move | null>(null);
+  const [aiDifficulty, setAiDifficulty] =
+    useState<PracticeDifficulty>("standard");
   const [announcement, setAnnouncement] = useState(
     "Red to move. Select a piece.",
   );
   const [hydrated, setHydrated] = useState(false);
+  const aiDescriptionId = useId();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const legalMoves = selected ? generateLegalMoves(position, selected) : [];
   const status = manualResult ? null : getGameStatus(position, positionHistory);
@@ -63,18 +77,35 @@ export function LocalGame({
     // Keep the server-rendered board inert until React can handle input.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setHydrated(true);
+    try {
+      const saved = localStorage.getItem(AI_DIFFICULTY_STORAGE_KEY);
+      if (isPracticeDifficulty(saved)) {
+        // Loading a device-local preference is the intended hydration step.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setAiDifficulty(saved);
+      }
+    } catch {
+      /* Private storage can be unavailable. */
+    }
   }, []);
 
   useEffect(() => {
     if (!solo || position.turn !== "black" || terminal) return;
-    const timer = window.setTimeout(() => {
-      const reply = choosePracticeMove(position, history.length);
-      if (reply) makeMove(reply);
-    }, 520);
+    const timer = window.setTimeout(
+      () => {
+        const reply = choosePracticeMove(
+          position,
+          history.length,
+          aiDifficulty,
+        );
+        if (reply) makeMove(reply);
+      },
+      aiDifficulty === "expert" ? 620 : aiDifficulty === "standard" ? 480 : 320,
+    );
     return () => window.clearTimeout(timer);
     // The move application intentionally uses the position captured for this turn.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [history.length, position, solo, terminal]);
+  }, [aiDifficulty, history.length, position, solo, terminal]);
 
   useEffect(() => {
     if (!dialog) return;
@@ -91,6 +122,14 @@ export function LocalGame({
   function closeDialog() {
     setDialog(null);
     requestAnimationFrame(() => triggerRef.current?.focus());
+  }
+  function changeDifficulty(next: PracticeDifficulty) {
+    setAiDifficulty(next);
+    try {
+      localStorage.setItem(AI_DIFFICULTY_STORAGE_KEY, next);
+    } catch {
+      /* Private storage can be unavailable. */
+    }
   }
   function chooseSquare(square: Square) {
     const piece = getPiece(position, square);
@@ -194,7 +233,7 @@ export function LocalGame({
   }
   function showCoachHint() {
     if (terminal || aiThinking || (solo && position.turn !== "red")) return;
-    const suggestion = choosePracticeMove(position, history.length);
+    const suggestion = choosePracticeMove(position, history.length, "expert");
     if (!suggestion) return;
     setSelected(suggestion.from);
     setHintMove(suggestion);
@@ -224,6 +263,12 @@ export function LocalGame({
     aiThinking,
     solo,
   );
+  const difficultyCopy =
+    aiDifficulty === "beginner"
+      ? t("play.aiBeginnerCopy")
+      : aiDifficulty === "expert"
+        ? t("play.aiExpertCopy")
+        : t("play.aiStandardCopy");
 
   return (
     <div className="local-game">
@@ -239,6 +284,28 @@ export function LocalGame({
           </span>
         </div>
         <div className="game-toolbar">
+          {solo && (
+            <>
+              <label className="ai-difficulty-select">
+                <span>{t("play.aiDifficulty")}</span>
+                <select
+                  value={aiDifficulty}
+                  aria-describedby={aiDescriptionId}
+                  disabled={aiThinking}
+                  onChange={(event) =>
+                    changeDifficulty(event.target.value as PracticeDifficulty)
+                  }
+                >
+                  <option value="beginner">{t("play.aiBeginner")}</option>
+                  <option value="standard">{t("play.aiStandard")}</option>
+                  <option value="expert">{t("play.aiExpert")}</option>
+                </select>
+              </label>
+              <span className="sr-only" id={aiDescriptionId}>
+                {difficultyCopy}
+              </span>
+            </>
+          )}
           <button
             type="button"
             aria-pressed={guideEnabled}
@@ -334,8 +401,7 @@ export function LocalGame({
                   {aiThinking ? "Coach is choosing a reply…" : "Board coach"}
                 </b>
                 <p>
-                  {coachNote ??
-                    "Ask for a suggested move or undo the last pair of moves and try another plan."}
+                  {coachNote ?? `${difficultyCopy} ${t("play.aiCoachHelp")}`}
                 </p>
               </div>
               <button

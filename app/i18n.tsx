@@ -209,6 +209,14 @@ const english = {
   "play.leftQueue": "You left the matchmaking queue.",
   "play.searching": "Searching for another guest. You can cancel at any time.",
   "play.notConnected": "Game service is not connected.",
+  "play.aiDifficulty": "AI difficulty",
+  "play.aiBeginner": "Beginner",
+  "play.aiStandard": "Standard",
+  "play.aiExpert": "Expert",
+  "play.aiBeginnerCopy": "Chooses quickly and leaves more tactical chances.",
+  "play.aiStandardCopy": "Looks one reply ahead and protects valuable pieces.",
+  "play.aiExpertCopy": "Searches three plies and punishes loose pieces.",
+  "play.aiCoachHelp": "You can still ask for a move or undo a turn.",
 } as const;
 
 export type TranslationKey = keyof typeof english;
@@ -393,6 +401,14 @@ const simplifiedChinese: TranslationTable = {
   "play.leftQueue": "你已退出匹配队列。",
   "play.searching": "正在寻找另一位游客，你可以随时取消。",
   "play.notConnected": "游戏服务尚未连接。",
+  "play.aiDifficulty": "电脑难度",
+  "play.aiBeginner": "入门",
+  "play.aiStandard": "标准",
+  "play.aiExpert": "高手",
+  "play.aiBeginnerCopy": "快速落子，并会留给你更多战术机会。",
+  "play.aiStandardCopy": "预判你下一步最强回应，并保护高价值棋子。",
+  "play.aiExpertCopy": "搜索三层变化，主动惩罚松动和无保护的棋子。",
+  "play.aiCoachHelp": "你仍可请求提示或悔棋。",
 };
 
 const traditionalChinese: TranslationTable = {
@@ -574,6 +590,14 @@ const traditionalChinese: TranslationTable = {
   "play.leftQueue": "你已退出配對佇列。",
   "play.searching": "正在尋找另一位訪客，你可以隨時取消。",
   "play.notConnected": "遊戲服務尚未連接。",
+  "play.aiDifficulty": "電腦難度",
+  "play.aiBeginner": "入門",
+  "play.aiStandard": "標準",
+  "play.aiExpert": "高手",
+  "play.aiBeginnerCopy": "快速落子，並會留給你更多戰術機會。",
+  "play.aiStandardCopy": "預判你下一步最強回應，並保護高價值棋子。",
+  "play.aiExpertCopy": "搜尋三層變化，主動懲罰鬆動和未受保護的棋子。",
+  "play.aiCoachHelp": "你仍可請求提示或悔棋。",
 };
 
 const japanese: TranslationTable = {
@@ -759,6 +783,14 @@ const japanese: TranslationTable = {
   "play.leftQueue": "マッチング待機列から退出しました。",
   "play.searching": "別のゲストを探しています。いつでもキャンセルできます。",
   "play.notConnected": "ゲームサービスに接続されていません。",
+  "play.aiDifficulty": "AIの強さ",
+  "play.aiBeginner": "入門",
+  "play.aiStandard": "標準",
+  "play.aiExpert": "上級",
+  "play.aiBeginnerCopy": "素早く指し、戦術的なチャンスを多めに残します。",
+  "play.aiStandardCopy": "次の最善応手を読み、価値の高い駒を守ります。",
+  "play.aiExpertCopy": "3手先まで読み、浮いた駒を厳しく狙います。",
+  "play.aiCoachHelp": "ヒントや待ったは引き続き利用できます。",
 };
 
 const translations: Record<Exclude<Locale, "en">, TranslationTable> = {

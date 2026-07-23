@@ -626,18 +626,32 @@ describe("serialization, hashing, notation, and repetition", () => {
 });
 
 describe("guided-game practice opponent", () => {
-  it("chooses deterministic legal moves for both sides", () => {
+  it("chooses deterministic legal moves at every difficulty", () => {
     const initial = createInitialPosition();
-    const firstChoice = choosePracticeMove(initial);
-    const repeatedChoice = choosePracticeMove(initial);
+    const firstChoice = choosePracticeMove(initial, 0, "standard");
+    const repeatedChoice = choosePracticeMove(initial, 0, "standard");
 
     expect(firstChoice).not.toBeNull();
     expect(repeatedChoice).toEqual(firstChoice);
     expect(isLegalMove(initial, firstChoice!)).toBe(true);
 
     const blackToMove = applyMove(initial, firstChoice!);
-    const reply = choosePracticeMove(blackToMove, 1);
-    expect(reply).not.toBeNull();
-    expect(isLegalMove(blackToMove, reply!)).toBe(true);
+    for (const difficulty of ["beginner", "standard", "expert"] as const) {
+      const reply = choosePracticeMove(blackToMove, 1, difficulty);
+      expect(reply).not.toBeNull();
+      expect(isLegalMove(blackToMove, reply!)).toBe(true);
+    }
+  });
+
+  it("expert prioritizes winning an exposed high-value piece", () => {
+    const position = withSafeGenerals(
+      [
+        { color: "black", type: "rook", column: 0, row: 0 },
+        { color: "red", type: "rook", column: 0, row: 5 },
+      ],
+      "black",
+    );
+
+    expect(choosePracticeMove(position, 0, "expert")).toEqual(mv(0, 0, 0, 5));
   });
 });

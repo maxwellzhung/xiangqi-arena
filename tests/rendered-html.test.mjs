@@ -84,6 +84,10 @@ test("guided tutorial handoff opens the coached board directly", async () => {
   assert.match(html, /Coach bot/);
   assert.match(html, /Show a move/);
   assert.match(html, /Undo turn/);
+  assert.match(html, /AI difficulty/);
+  assert.match(html, /Beginner/);
+  assert.match(html, /Standard/);
+  assert.match(html, /Expert/);
   assert.match(html, /CHINESE PIECES/);
   assert.match(html, /General/);
   assert.doesNotMatch(html, /Choose how you want to play/);

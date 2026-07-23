@@ -2002,7 +2002,50 @@ a {
 }
 .game-toolbar {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 6px;
+}
+.ai-difficulty-select {
+  min-height: 35px;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 5px 4px 9px;
+  border: 1px solid #c9d4cf;
+  border-radius: 9px;
+  background: rgba(236, 245, 241, 0.92);
+}
+.ai-difficulty-select:focus-within {
+  outline: 2px solid var(--sage);
+  outline-offset: 2px;
+}
+.ai-difficulty-select > span {
+  color: #547269;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.ai-difficulty-select select {
+  min-height: 25px;
+  padding: 3px 22px 3px 7px;
+  border: 0;
+  border-radius: 6px;
+  background-color: white;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+}
+.ai-difficulty-select select:focus {
+  outline: 0;
+}
+.ai-difficulty-select select:disabled {
+  cursor: wait;
+  opacity: 0.58;
 }
 .game-layout {
   display: grid;
