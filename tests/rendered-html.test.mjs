@@ -93,6 +93,22 @@ test("guided tutorial handoff opens the coached board directly", async () => {
   assert.doesNotMatch(html, /Choose how you want to play/);
 });
 
+test("keeps game feedback in the side rail beside the board", async () => {
+  const response = await render("/play?mode=guided");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  const css = await readFile(
+    new URL("../app/globals.css", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    html,
+    /game-board-column[\s\S]*game-side-column[\s\S]*move-panel/,
+  );
+  assert.match(css, /grid-template-areas:\s*"players board side"/);
+  assert.match(css, /\.game-result-side\s*\{[\s\S]*position:\s*sticky/);
+});
+
 test("removes starter assets and wires a bespoke social card", async () => {
   const [layout, packageJson] = await Promise.all([
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),

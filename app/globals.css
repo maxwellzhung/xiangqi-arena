@@ -2050,13 +2050,26 @@ a {
 .game-layout {
   display: grid;
   grid-template-columns: minmax(180px, 0.55fr) minmax(430px, 1.35fr) minmax(
-      210px,
-      0.65fr
+      230px,
+      0.72fr
     );
+  grid-template-areas: "players board side";
   gap: 18px;
   align-items: start;
 }
 .player-column {
+  grid-area: players;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.game-board-column {
+  grid-area: board;
+  min-width: 0;
+}
+.game-side-column {
+  grid-area: side;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -2702,6 +2715,40 @@ a {
     25px Georgia,
     serif;
 }
+.game-result-side {
+  position: sticky;
+  top: 82px;
+  z-index: 6;
+  margin-top: 0;
+  padding: 18px 15px;
+  text-align: left;
+  box-shadow: 0 16px 36px rgba(16, 39, 35, 0.12);
+}
+.game-result-side h2 {
+  margin: 4px 0 14px;
+  font-size: 22px;
+  line-height: 1.12;
+}
+.game-result-side > p:not(.eyebrow) {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+.game-result-side .post-game-insights {
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.game-result-side .post-game-insights > div {
+  padding: 9px 5px;
+  text-align: center;
+}
+.game-result-side .post-game-insights > p {
+  text-align: left;
+}
+.game-result-side .button {
+  width: 100%;
+}
 .post-game-insights {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -2998,7 +3045,10 @@ a {
     display: none;
   }
   .game-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(230px, 0.52fr);
+    grid-template-areas:
+      "players players"
+      "board side";
   }
   .player-column {
     display: grid;
@@ -3351,6 +3401,18 @@ a {
   .post-game-insights {
     grid-template-columns: 1fr 1fr;
   }
+  .game-side-column {
+    margin-top: 14px;
+  }
+  .game-result-side {
+    position: static;
+    width: min(100%, 620px);
+    margin: 0 auto;
+    text-align: center;
+  }
+  .game-result-side .post-game-insights > p {
+    text-align: center;
+  }
   .replay-insight {
     flex-direction: column;
   }
@@ -3359,6 +3421,9 @@ a {
   }
   .move-panel {
     margin-top: 14px;
+  }
+  .game-side-column .move-panel {
+    margin-top: 0;
   }
   .game-dialog > div {
     flex-direction: column-reverse;

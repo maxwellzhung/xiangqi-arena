@@ -365,7 +365,7 @@ export function LocalGame({
             captured={capturedByBlack}
           />
         </aside>
-        <div>
+        <div className="game-board-column">
           {guideEnabled && !terminal && (
             <section className="first-game-guide" aria-live="polite">
               <span>
@@ -449,8 +449,10 @@ export function LocalGame({
             hintSquares={hintMove ? [hintMove.from, hintMove.to] : []}
             disabled={inputDisabled}
           />
+        </div>
+        <aside className="game-side-column">
           {terminal && (
-            <div className="game-result" role="status">
+            <div className="game-result game-result-side" role="status">
               <p className="eyebrow">GAME OVER</p>
               <h2>{statusText}</h2>
               <PostGameInsights history={history} />
@@ -463,34 +465,34 @@ export function LocalGame({
               </button>
             </div>
           )}
-        </div>
-        <aside className="move-panel">
-          <div className="move-panel-head">
-            <span>MOVE HISTORY</span>
-            <b>{history.length} moves</b>
-          </div>
-          <ol aria-label="Move history">
-            {history.length === 0 ? (
-              <li className="empty-moves">Select a red piece to begin.</li>
-            ) : (
-              history.map((item, index) => (
-                <li key={index}>
-                  <span>{index + 1}</span>
-                  <b>{item.label}</b>
-                  {(item.captured || item.gaveCheck) && (
-                    <small>{item.captured ? "capture" : "check"}</small>
-                  )}
-                </li>
-              ))
-            )}
-          </ol>
-          <div className="practice-note">
-            <b>{solo ? "Solo coached practice" : "Local practice"}</b>
-            <p>
-              {solo
-                ? "You play Red. The coach replies as Black, while Undo, Hint, and move explanations stay available throughout the game."
-                : "This board uses the production rules engine. Hosted clocks and multiplayer state stay server-authoritative when connected."}
-            </p>
+          <div className="move-panel">
+            <div className="move-panel-head">
+              <span>MOVE HISTORY</span>
+              <b>{history.length} moves</b>
+            </div>
+            <ol aria-label="Move history">
+              {history.length === 0 ? (
+                <li className="empty-moves">Select a red piece to begin.</li>
+              ) : (
+                history.map((item, index) => (
+                  <li key={index}>
+                    <span>{index + 1}</span>
+                    <b>{item.label}</b>
+                    {(item.captured || item.gaveCheck) && (
+                      <small>{item.captured ? "capture" : "check"}</small>
+                    )}
+                  </li>
+                ))
+              )}
+            </ol>
+            <div className="practice-note">
+              <b>{solo ? "Solo coached practice" : "Local practice"}</b>
+              <p>
+                {solo
+                  ? "You play Red. The coach replies as Black, while Undo, Hint, and move explanations stay available throughout the game."
+                  : "This board uses the production rules engine. Hosted clocks and multiplayer state stay server-authoritative when connected."}
+              </p>
+            </div>
           </div>
         </aside>
       </div>

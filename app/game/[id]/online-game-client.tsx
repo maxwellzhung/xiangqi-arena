@@ -553,7 +553,7 @@ export function OnlineGameClient({ roomOrGameId }: { roomOrGameId: string }) {
           />
         </aside>
 
-        <div>
+        <div className="game-board-column">
           <XiangqiBoard
             position={position}
             selected={selected}
@@ -565,8 +565,10 @@ export function OnlineGameClient({ roomOrGameId }: { roomOrGameId: string }) {
             onMove={submitMove}
             disabled={!canMove}
           />
+        </div>
+        <aside className="game-side-column">
           {snapshot.status === "completed" && (
-            <div className="game-result" role="status">
+            <div className="game-result game-result-side" role="status">
               <p className="eyebrow">GAME OVER</p>
               <h2>{resultText(snapshot, color)}</h2>
               <p>
@@ -581,41 +583,40 @@ export function OnlineGameClient({ roomOrGameId }: { roomOrGameId: string }) {
               </Link>
             </div>
           )}
-        </div>
-
-        <aside className="move-panel">
-          <div className="move-panel-head">
-            <span>MOVE HISTORY</span>
-            <b>{snapshot.moveSequence} moves</b>
-          </div>
-          <ol aria-label="Move history">
-            {history.length === 0 ? (
-              <li className="empty-moves">
-                {color === "red"
-                  ? "You have the first move."
-                  : "Waiting for Red."}
-              </li>
-            ) : (
-              history.map((item) => (
-                <li key={item.sequence}>
-                  <span>{item.sequence}</span>
-                  <b>{item.label}</b>
-                  {item.capturedPiece && <small>capture</small>}
+          <div className="move-panel">
+            <div className="move-panel-head">
+              <span>MOVE HISTORY</span>
+              <b>{snapshot.moveSequence} moves</b>
+            </div>
+            <ol aria-label="Move history">
+              {history.length === 0 ? (
+                <li className="empty-moves">
+                  {color === "red"
+                    ? "You have the first move."
+                    : "Waiting for Red."}
                 </li>
-              ))
-            )}
-          </ol>
-          <div className="practice-note">
-            <b>
-              {opponentAwayUntil
-                ? "Opponent reconnecting"
-                : "Server-authoritative"}
-            </b>
-            <p>
-              {opponentAwayUntil
-                ? `Reconnect window ends in ${Math.max(0, Math.ceil((opponentAwayUntil - now) / 1_000))} seconds.`
-                : notice}
-            </p>
+              ) : (
+                history.map((item) => (
+                  <li key={item.sequence}>
+                    <span>{item.sequence}</span>
+                    <b>{item.label}</b>
+                    {item.capturedPiece && <small>capture</small>}
+                  </li>
+                ))
+              )}
+            </ol>
+            <div className="practice-note">
+              <b>
+                {opponentAwayUntil
+                  ? "Opponent reconnecting"
+                  : "Server-authoritative"}
+              </b>
+              <p>
+                {opponentAwayUntil
+                  ? `Reconnect window ends in ${Math.max(0, Math.ceil((opponentAwayUntil - now) / 1_000))} seconds.`
+                  : notice}
+              </p>
+            </div>
           </div>
         </aside>
       </div>
