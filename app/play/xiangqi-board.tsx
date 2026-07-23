@@ -266,6 +266,11 @@ export function XiangqiBoard({
                 onClick={() => activate(square)}
               >
                 <span className="legal-dot" aria-hidden="true" />
+                {(selectedNow || hinted) && (
+                  <span className="board-coordinate-chip" aria-hidden="true">
+                    {coordinate}
+                  </span>
+                )}
                 {piece && (
                   <span className="piece-face" aria-hidden="true">
                     {label}
