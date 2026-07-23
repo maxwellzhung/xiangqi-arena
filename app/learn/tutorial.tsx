@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
   applyMove,
@@ -500,7 +499,11 @@ function trackLearningEvent(
   }
 }
 
-export function LearnLesson() {
+export function LearnLesson({
+  guidedGameHref = "/play?mode=guided",
+}: {
+  guidedGameHref?: string;
+}) {
   const [index, setIndex] = useState(0);
   const [experience, setExperience] = useState<ExperienceMode>("chess");
   const [completed, setCompleted] = useState<ReadonlySet<string>>(
@@ -845,6 +848,7 @@ export function LearnLesson() {
             locked={!allLessonsComplete}
             passed={assessmentPassed}
             bestScore={bestScore}
+            guidedGameHref={guidedGameHref}
             onScore={handleAssessment}
             onReview={() => goTo(0, false)}
           />
@@ -1214,12 +1218,14 @@ function Assessment({
   locked,
   passed,
   bestScore,
+  guidedGameHref,
   onScore,
   onReview,
 }: {
   locked: boolean;
   passed: boolean;
   bestScore: number;
+  guidedGameHref: string;
   onScore: (score: number) => void;
   onReview: () => void;
 }) {
@@ -1252,9 +1258,9 @@ function Assessment({
           Your best score is <b>{bestScore}%</b>. The first game keeps
           explanations and legal destinations visible.
         </p>
-        <Link className="button button-primary" href="/play?mode=guided">
+        <a className="button button-primary" href={guidedGameHref}>
           Start guided first game →
-        </Link>
+        </a>
         <button className="text-button" type="button" onClick={onReview}>
           Review any lesson
         </button>

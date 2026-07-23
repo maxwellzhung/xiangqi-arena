@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
+import { LearnLesson } from "../app/learn/tutorial";
 import { LocalGame } from "../app/play/local-game";
 import "../app/globals.css";
 import "./pages.css";
@@ -19,24 +20,6 @@ const benefits = [
     icon: "↻",
     title: "Private by design",
     copy: "This edition runs on your device. No account, cookies, or game upload.",
-  },
-] as const;
-
-const differences = [
-  {
-    number: "01",
-    title: "Pieces live on intersections",
-    copy: "The river and two palaces turn the board itself into part of the strategy.",
-  },
-  {
-    number: "02",
-    title: "Cannons need a screen",
-    copy: "A Cannon captures by jumping exactly one piece, creating tactics with no Western-chess equivalent.",
-  },
-  {
-    number: "03",
-    title: "Stalemate is a loss",
-    copy: "If you have no legal move, the other side wins. Active play is always rewarded.",
   },
 ] as const;
 
@@ -161,7 +144,7 @@ function App() {
                 <span>✓</span> Legal moves, check, captures, and undo
               </li>
               <li>
-                <span>✓</span> Western and traditional piece labels
+                <span>✓</span> Nine interactive lessons and final assessment
               </li>
             </ul>
             <a className="button button-primary button-full" href="#play">
@@ -210,22 +193,15 @@ function App() {
 
         <section id="learn" className="pages-learn section-wrap">
           <div className="section-heading">
-            <p className="eyebrow">FAMILIAR, BUT FRESH</p>
-            <h2>Chess instincts. A whole new board.</h2>
+            <p className="eyebrow">LEARN BY DOING · ABOUT 8 MINUTES</p>
+            <h2>Learn by making real moves.</h2>
             <p>
-              If you know Western chess, you already have a head start. Three
-              differences define the rhythm of Xiangqi.
+              Choose a route for your experience level, practise every piece on
+              a live board, and finish with a five-position readiness check.
+              Your progress stays on this device.
             </p>
           </div>
-          <div className="difference-grid">
-            {differences.map((item) => (
-              <article key={item.number} className="difference-card">
-                <span>{item.number}</span>
-                <h3>{item.title}</h3>
-                <p>{item.copy}</p>
-              </article>
-            ))}
-          </div>
+          <LearnLesson guidedGameHref="#play" />
           <a
             className="text-link centered"
             href="https://github.com/maxwellzhung/xiangqi-arena/blob/main/docs/XIANGQI_RULES.md"
