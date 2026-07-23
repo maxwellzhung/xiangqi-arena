@@ -2119,7 +2119,7 @@ a {
     0 25px 55px rgba(16, 39, 35, 0.23);
 }
 .board-piece-guide {
-  margin: 0 0 13px;
+  margin: 0 0 32px;
   padding: 9px 10px;
   border: 1px solid rgba(238, 225, 196, 0.2);
   border-radius: 10px;
@@ -2178,7 +2178,7 @@ a {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: -16px;
+  bottom: -32px;
   z-index: 5;
   display: flex;
   justify-content: space-between;
@@ -2193,7 +2193,7 @@ a {
 .board-ranks {
   position: absolute;
   top: 0;
-  right: -18px;
+  right: -28px;
   bottom: 0;
   z-index: 5;
   display: flex;
@@ -2400,7 +2400,7 @@ a {
   margin-bottom: 9px;
 }
 .board-label-bottom {
-  margin-top: 9px;
+  margin-top: 48px;
 }
 .orientation-black .game-board {
   transform: rotate(180deg);
