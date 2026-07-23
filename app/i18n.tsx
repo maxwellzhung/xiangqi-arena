@@ -94,6 +94,32 @@ const english = {
   "home.diffStalemateCopy":
     "If you have no legal move, you lose. Xiangqi rewards active, tactical play.",
   "home.exploreLesson": "Explore the interactive lesson",
+  "pages.localEdition": "Local edition",
+  "pages.source": "Source",
+  "pages.brandline": "Dynasty Chess — Ancient China Strategy Battle",
+  "pages.editionLabel": "GitHub Pages edition",
+  "pages.playAnywhere": "Play anywhere",
+  "pages.ready": "Ready",
+  "pages.checkGame": "Full local game and board coach",
+  "pages.checkRules": "Legal moves, check, captures, and undo",
+  "pages.checkLessons": "Nine interactive lessons and final assessment",
+  "pages.openBoard": "Open the board",
+  "pages.cardNote":
+    "Runs entirely in this browser. Online rooms need the full server deployment and are not shown here.",
+  "pages.benefitRulesTitle": "Complete Xiangqi rules",
+  "pages.benefitRulesCopy":
+    "Every move is checked by the same TypeScript engine as the full game.",
+  "pages.benefitWesternTitle": "Built for international players",
+  "pages.benefitWesternCopy":
+    "Four interface languages, readable piece labels, coordinates, legal moves, and plain-language feedback.",
+  "pages.benefitPrivateTitle": "Private by design",
+  "pages.benefitPrivateCopy":
+    "This edition runs on your device. No account, cookies, or game upload.",
+  "pages.staticNoticeTitle": "Static local edition",
+  "pages.staticNoticeCopy":
+    "Your match stays on this device. Online rooms, matchmaking, shared clocks, and cloud history require a server-capable host.",
+  "pages.footerEdition": "Static local-play edition · Hosted on GitHub Pages",
+  "pages.readRules": "Read the complete rules",
 
   "intro.play.eyebrow": "PLAY AS A GUEST",
   "intro.play.title": "Choose how you want to play",
@@ -258,6 +284,32 @@ const simplifiedChinese: TranslationTable = {
   "home.diffStalemateCopy":
     "如果没有任何合法走法，你就输了。象棋鼓励积极的战术进攻。",
   "home.exploreLesson": "开始互动课程",
+  "pages.localEdition": "本机版",
+  "pages.source": "源代码",
+  "pages.brandline": "中国象棋 · 楚汉古战场策略对决",
+  "pages.editionLabel": "GITHUB PAGES 版本",
+  "pages.playAnywhere": "随时随地对弈",
+  "pages.ready": "已就绪",
+  "pages.checkGame": "完整本地对局与棋盘教练",
+  "pages.checkRules": "合法走法、将军、吃子与悔棋",
+  "pages.checkLessons": "9 个互动课程与最终测评",
+  "pages.openBoard": "打开棋盘",
+  "pages.cardNote":
+    "完全在此浏览器中运行。在线房间需要完整服务器部署，因此本版本不显示。",
+  "pages.benefitRulesTitle": "完整象棋规则",
+  "pages.benefitRulesCopy":
+    "每一步都由与完整版相同的 TypeScript 规则引擎验证。",
+  "pages.benefitWesternTitle": "面向国际玩家",
+  "pages.benefitWesternCopy":
+    "四种界面语言、易读棋子标签、坐标、合法落点和简明反馈。",
+  "pages.benefitPrivateTitle": "隐私优先",
+  "pages.benefitPrivateCopy":
+    "本版本仅在设备上运行，无需账户、Cookie，也不会上传棋局。",
+  "pages.staticNoticeTitle": "静态本地版",
+  "pages.staticNoticeCopy":
+    "你的对局只保存在当前设备。在线房间、匹配、共享时钟和云端历史需要服务器托管。",
+  "pages.footerEdition": "GitHub Pages 托管的本地对弈版",
+  "pages.readRules": "阅读完整规则",
   "intro.play.eyebrow": "游客对弈",
   "intro.play.title": "选择你的对弈方式",
   "intro.play.copy":
@@ -413,6 +465,32 @@ const traditionalChinese: TranslationTable = {
   "home.diffStalemateCopy":
     "如果沒有任何合法走法，你就輸了。象棋鼓勵積極的戰術進攻。",
   "home.exploreLesson": "開始互動課程",
+  "pages.localEdition": "本機版",
+  "pages.source": "原始碼",
+  "pages.brandline": "中國象棋 · 楚漢古戰場策略對決",
+  "pages.editionLabel": "GITHUB PAGES 版本",
+  "pages.playAnywhere": "隨時隨地對弈",
+  "pages.ready": "已就緒",
+  "pages.checkGame": "完整本機對局與棋盤教練",
+  "pages.checkRules": "合法走法、將軍、吃子與悔棋",
+  "pages.checkLessons": "9 個互動課程與最終測驗",
+  "pages.openBoard": "開啟棋盤",
+  "pages.cardNote":
+    "完全在此瀏覽器中執行。線上房間需要完整伺服器部署，因此本版本不顯示。",
+  "pages.benefitRulesTitle": "完整象棋規則",
+  "pages.benefitRulesCopy":
+    "每一步都由與完整版相同的 TypeScript 規則引擎驗證。",
+  "pages.benefitWesternTitle": "面向國際玩家",
+  "pages.benefitWesternCopy":
+    "四種介面語言、易讀棋子標籤、座標、合法落點和簡明回饋。",
+  "pages.benefitPrivateTitle": "隱私優先",
+  "pages.benefitPrivateCopy":
+    "本版本僅在裝置上執行，無需帳戶、Cookie，也不會上傳棋局。",
+  "pages.staticNoticeTitle": "靜態本機版",
+  "pages.staticNoticeCopy":
+    "你的對局只儲存在目前裝置。線上房間、配對、共用時鐘和雲端紀錄需要伺服器託管。",
+  "pages.footerEdition": "由 GitHub Pages 託管的本機對弈版",
+  "pages.readRules": "閱讀完整規則",
   "intro.play.eyebrow": "訪客對弈",
   "intro.play.title": "選擇你的對弈方式",
   "intro.play.copy":
@@ -569,6 +647,32 @@ const japanese: TranslationTable = {
   "home.diffStalemateCopy":
     "合法手がなければ負けです。シャンチーでは積極的な戦術が報われます。",
   "home.exploreLesson": "インタラクティブレッスンへ",
+  "pages.localEdition": "ローカル版",
+  "pages.source": "ソースコード",
+  "pages.brandline": "シャンチー · 古代中国の戦略対決",
+  "pages.editionLabel": "GITHUB PAGES版",
+  "pages.playAnywhere": "どこでもプレイ",
+  "pages.ready": "準備完了",
+  "pages.checkGame": "完全なローカル対局と盤面コーチ",
+  "pages.checkRules": "合法手、王手、駒取り、待った",
+  "pages.checkLessons": "9つの実践レッスンと最終チェック",
+  "pages.openBoard": "盤を開く",
+  "pages.cardNote":
+    "このブラウザ内だけで動作します。オンラインルームには完全なサーバー環境が必要なため、この版には含まれません。",
+  "pages.benefitRulesTitle": "完全なシャンチールール",
+  "pages.benefitRulesCopy":
+    "完全版と同じ TypeScript ルールエンジンがすべての手を検証します。",
+  "pages.benefitWesternTitle": "世界のプレイヤー向け",
+  "pages.benefitWesternCopy":
+    "4つの表示言語、読みやすい駒名、座標、合法手、わかりやすいフィードバック。",
+  "pages.benefitPrivateTitle": "プライバシー重視",
+  "pages.benefitPrivateCopy":
+    "この版は端末内だけで動作します。アカウント、Cookie、棋譜のアップロードは不要です。",
+  "pages.staticNoticeTitle": "静的ローカル版",
+  "pages.staticNoticeCopy":
+    "対局はこの端末だけに保存されます。オンラインルーム、マッチング、共有時計、クラウド履歴にはサーバーが必要です。",
+  "pages.footerEdition": "GitHub Pages で公開するローカル対局版",
+  "pages.readRules": "完全なルールを読む",
   "intro.play.eyebrow": "ゲストで対局",
   "intro.play.title": "対局方法を選ぶ",
   "intro.play.copy":

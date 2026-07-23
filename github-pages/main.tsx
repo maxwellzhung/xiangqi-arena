@@ -1,5 +1,11 @@
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
+import {
+  I18nProvider,
+  LanguageSelect,
+  type TranslationKey,
+  useLanguage,
+} from "../app/i18n";
 import { LearnLesson } from "../app/learn/tutorial";
 import { LocalGame } from "../app/play/local-game";
 import "../app/globals.css";
@@ -8,28 +14,33 @@ import "./pages.css";
 const benefits = [
   {
     icon: "◎",
-    title: "Complete Xiangqi rules",
-    copy: "Every move is checked by the same TypeScript engine as the full game.",
+    title: "pages.benefitRulesTitle",
+    copy: "pages.benefitRulesCopy",
   },
   {
     icon: "◇",
-    title: "Built for Western players",
-    copy: "English piece labels, coordinates, legal moves, and plain-language feedback.",
+    title: "pages.benefitWesternTitle",
+    copy: "pages.benefitWesternCopy",
   },
   {
     icon: "↻",
-    title: "Private by design",
-    copy: "This edition runs on your device. No account, cookies, or game upload.",
+    title: "pages.benefitPrivateTitle",
+    copy: "pages.benefitPrivateCopy",
   },
-] as const;
+] as const satisfies ReadonlyArray<{
+  icon: string;
+  title: TranslationKey;
+  copy: TranslationKey;
+}>;
 
 function App() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { t } = useLanguage();
 
   return (
     <div className="site-shell pages-shell">
       <header className="site-header pages-header">
-        <a className="brand" href="#top" aria-label="Han vs Chu home">
+        <a className="brand" href="#top" aria-label={t("brand.home")}>
           <span className="brand-mark" aria-hidden="true">
             <i>楚</i>
             <i>漢</i>
@@ -41,31 +52,32 @@ function App() {
         </a>
         <nav
           className={`site-nav${menuOpen ? " open" : ""}`}
-          aria-label="Main navigation"
+          aria-label={t("nav.main")}
         >
           <a href="#play" onClick={() => setMenuOpen(false)}>
-            Play
+            {t("nav.play")}
           </a>
           <a href="#learn" onClick={() => setMenuOpen(false)}>
-            Learn
+            {t("nav.learn")}
           </a>
           <a
             href="https://github.com/maxwellzhung/xiangqi-arena"
             onClick={() => setMenuOpen(false)}
           >
-            Source
+            {t("pages.source")}
           </a>
         </nav>
         <div className="header-actions">
-          <span className="pages-local-pill">LOCAL EDITION</span>
+          <LanguageSelect compact />
+          <span className="pages-local-pill">{t("pages.localEdition")}</span>
           <a className="button button-primary button-small" href="#play">
-            Play now
+            {t("nav.playNow")}
           </a>
         </div>
         <button
           className="menu-button"
           type="button"
-          aria-label="Menu"
+          aria-label={t("nav.menu")}
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen((open) => !open)}
         >
@@ -80,56 +92,49 @@ function App() {
         >
           <div className="pages-hero-copy">
             <p className="eyebrow">
-              <span className="live-dot" /> Free local play · No account needed
+              <span className="live-dot" /> {t("home.guest")}
             </p>
             <h1 id="hero-title">
-              Cross the river.
+              {t("home.titleLine1")}
               <br />
-              <em>Claim the dynasty.</em>
+              <em>{t("home.titleLine2")}</em>
             </h1>
-            <p className="hero-brandline">
-              Dynasty Chess <span aria-hidden="true">—</span> Ancient China
-              Strategy Battle
-            </p>
-            <p className="pages-hero-lede">
-              Learn and play Xiangqi—the strategy game behind the ancient
-              rivalry of Chu and Han. Start against the board coach in seconds,
-              with every legal move explained.
-            </p>
+            <p className="hero-brandline">{t("pages.brandline")}</p>
+            <p className="pages-hero-lede">{t("home.lede")}</p>
             <div className="hero-actions">
               <a className="button button-primary" href="#play">
-                Start guided game <span aria-hidden="true">→</span>
+                {t("home.playNow")} <span aria-hidden="true">→</span>
               </a>
               <a className="button button-secondary" href="#learn">
-                Learn the differences
+                {t("home.exploreLesson")}
               </a>
             </div>
-            <dl className="hero-stats" aria-label="Game features">
+            <dl className="hero-stats" aria-label={t("home.benefits")}>
               <div>
-                <dt>ACCESS</dt>
-                <dd>No account</dd>
+                <dt>{t("home.statGuest")}</dt>
+                <dd>{t("home.statGuestValue")}</dd>
               </div>
               <div>
-                <dt>RULES</dt>
-                <dd>Full engine</dd>
+                <dt>{t("home.rulesTitle")}</dt>
+                <dd>{t("home.statLearnValue")}</dd>
               </div>
               <div>
-                <dt>COACH</dt>
-                <dd>Built in</dd>
+                <dt>{t("home.guidanceTitle")}</dt>
+                <dd>{t("home.guidanceCopy")}</dd>
               </div>
             </dl>
           </div>
 
           <aside
             className="pages-edition-card"
-            aria-label="GitHub Pages edition"
+            aria-label={t("pages.editionLabel")}
           >
             <div className="pages-card-top">
               <div>
-                <span className="match-kicker">GITHUB PAGES EDITION</span>
-                <h2>Play anywhere</h2>
+                <span className="match-kicker">{t("pages.editionLabel")}</span>
+                <h2>{t("pages.playAnywhere")}</h2>
               </div>
-              <span className="pages-ready">Ready</span>
+              <span className="pages-ready">{t("pages.ready")}</span>
             </div>
             <div className="pages-orbit" aria-hidden="true">
               <span className="pages-orbit-piece red">R</span>
@@ -138,32 +143,29 @@ function App() {
             </div>
             <ul className="pages-check-list">
               <li>
-                <span>✓</span> Full local game and board coach
+                <span>✓</span> {t("pages.checkGame")}
               </li>
               <li>
-                <span>✓</span> Legal moves, check, captures, and undo
+                <span>✓</span> {t("pages.checkRules")}
               </li>
               <li>
-                <span>✓</span> Nine interactive lessons and final assessment
+                <span>✓</span> {t("pages.checkLessons")}
               </li>
             </ul>
             <a className="button button-primary button-full" href="#play">
-              Open the board <span aria-hidden="true">↓</span>
+              {t("pages.openBoard")} <span aria-hidden="true">↓</span>
             </a>
-            <p className="pages-card-note">
-              Runs entirely in this browser. Online rooms need the full server
-              deployment and are not shown here.
-            </p>
+            <p className="pages-card-note">{t("pages.cardNote")}</p>
           </aside>
         </section>
 
-        <section className="pages-benefits" aria-label="Product benefits">
+        <section className="pages-benefits" aria-label={t("home.benefits")}>
           {benefits.map((benefit) => (
             <article key={benefit.title}>
               <span aria-hidden="true">{benefit.icon}</span>
               <div>
-                <b>{benefit.title}</b>
-                <small>{benefit.copy}</small>
+                <b>{t(benefit.title)}</b>
+                <small>{t(benefit.copy)}</small>
               </div>
             </article>
           ))}
@@ -172,20 +174,16 @@ function App() {
         <section id="play" className="pages-play-section section-wrap">
           <div className="pages-section-heading">
             <div>
-              <p className="eyebrow">GUIDED LOCAL MATCH</p>
-              <h2>Make your first move.</h2>
+              <p className="eyebrow">{t("intro.play.guidedEyebrow")}</p>
+              <h2>{t("intro.play.guidedTitle")}</h2>
             </div>
-            <p>
-              You play Red. Select a piece, then choose a green destination. The
-              coach replies as Black and can suggest a move when you want help.
-            </p>
+            <p>{t("intro.play.guidedCopy")}</p>
           </div>
           <div className="pages-static-notice" role="status">
             <span aria-hidden="true">●</span>
             <p>
-              <b>Static local edition</b>
-              Your match stays on this device. Online rooms, matchmaking, shared
-              clocks, and cloud history require a server-capable host.
+              <b>{t("pages.staticNoticeTitle")}</b>
+              {t("pages.staticNoticeCopy")}
             </p>
           </div>
           <LocalGame solo />
@@ -193,26 +191,22 @@ function App() {
 
         <section id="learn" className="pages-learn section-wrap">
           <div className="section-heading">
-            <p className="eyebrow">LEARN BY DOING · ABOUT 8 MINUTES</p>
-            <h2>Learn by making real moves.</h2>
-            <p>
-              Choose a route for your experience level, practise every piece on
-              a live board, and finish with a five-position readiness check.
-              Your progress stays on this device.
-            </p>
+            <p className="eyebrow">{t("intro.learn.eyebrow")}</p>
+            <h2>{t("intro.learn.title")}</h2>
+            <p>{t("intro.learn.copy")}</p>
           </div>
           <LearnLesson guidedGameHref="#play" />
           <a
             className="text-link centered"
             href="https://github.com/maxwellzhung/xiangqi-arena/blob/main/docs/XIANGQI_RULES.md"
           >
-            Read the complete rules <span aria-hidden="true">→</span>
+            {t("pages.readRules")} <span aria-hidden="true">→</span>
           </a>
         </section>
       </main>
 
       <footer className="site-footer pages-footer">
-        <a className="brand" href="#top" aria-label="Back to top">
+        <a className="brand" href="#top" aria-label={t("brand.home")}>
           <span className="brand-mark" aria-hidden="true">
             <i>楚</i>
             <i>漢</i>
@@ -222,15 +216,21 @@ function App() {
             <small>ANCIENT STRATEGY, PLAYED TODAY</small>
           </span>
         </a>
-        <p>Static local-play edition · Hosted on GitHub Pages</p>
-        <nav aria-label="Footer navigation">
-          <a href="#play">Play</a>
-          <a href="#learn">Learn</a>
-          <a href="https://github.com/maxwellzhung/xiangqi-arena">GitHub</a>
+        <p>{t("pages.footerEdition")}</p>
+        <nav aria-label={t("footer.navigation")}>
+          <a href="#play">{t("nav.play")}</a>
+          <a href="#learn">{t("nav.learn")}</a>
+          <a href="https://github.com/maxwellzhung/xiangqi-arena">
+            {t("pages.source")}
+          </a>
         </nav>
       </footer>
     </div>
   );
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(
+  <I18nProvider>
+    <App />
+  </I18nProvider>,
+);

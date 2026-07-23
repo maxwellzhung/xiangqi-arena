@@ -6,6 +6,7 @@ on:
     paths:
       - ".github/workflows/pages.yml"
       - "app/globals.css"
+      - "app/i18n.tsx"
       - "app/learn/tutorial.tsx"
       - "app/play/local-game.tsx"
       - "app/play/xiangqi-board.tsx"
