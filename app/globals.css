@@ -1972,45 +1972,6 @@ a {
   padding-bottom: 17px;
   border-bottom: 1px solid rgba(16, 39, 35, 0.1);
 }
-.piece-key {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 14px;
-  margin: -7px 0 15px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.82);
-  color: var(--muted);
-  font-size: 9px;
-}
-.piece-key > b {
-  color: var(--ink);
-  letter-spacing: 0.1em;
-}
-.piece-key span {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.piece-key i {
-  width: 20px;
-  height: 20px;
-  display: inline-grid;
-  place-items: center;
-  border: 1px solid #b7865a;
-  border-radius: 50%;
-  background: linear-gradient(145deg, #fae8c6, #e6c388);
-  color: #733d2f;
-  font:
-    700 10px Georgia,
-    serif;
-}
-.piece-key small {
-  margin-left: auto;
-  color: #7f6845;
-}
 .game-topbar > div {
   display: flex;
   align-items: center;
@@ -2157,6 +2118,43 @@ a {
     inset 0 0 0 6px rgba(0, 0, 0, 0.08),
     0 25px 55px rgba(16, 39, 35, 0.23);
 }
+.board-piece-guide {
+  margin: 0 0 13px;
+  padding: 9px 10px;
+  border: 1px solid rgba(238, 225, 196, 0.2);
+  border-radius: 10px;
+  background: rgba(5, 17, 15, 0.46);
+  color: rgba(244, 236, 218, 0.82);
+}
+.board-piece-guide > strong {
+  display: block;
+  margin-bottom: 7px;
+  color: #f4e4bd;
+  font-size: 8px;
+  letter-spacing: 0.13em;
+}
+.board-piece-guide > div {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px 10px;
+}
+.board-piece-guide span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font-size: 8px;
+  white-space: nowrap;
+}
+.board-piece-guide span b {
+  min-width: 29px;
+  padding: 3px 4px;
+  border-radius: 4px;
+  background: rgba(244, 228, 189, 0.13);
+  color: white;
+  font-size: 8px;
+  text-align: center;
+}
 .game-board-area {
   position: relative;
 }
@@ -2300,6 +2298,17 @@ a {
 }
 .piece-mode-western .board-point.black .piece-face {
   border-radius: 34%;
+}
+.piece-mode-western .piece-face {
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  font-size: clamp(8px, 1.35vw, 13px);
+  letter-spacing: -0.02em;
 }
 .piece-mode-western .piece-face::after {
   width: 12px;
@@ -3226,12 +3235,8 @@ a {
   .game-topbar > div {
     flex-wrap: wrap;
   }
-  .piece-key {
-    gap: 7px 10px;
-  }
-  .piece-key small {
-    width: 100%;
-    margin-left: 0;
+  .board-piece-guide > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .game-layout {
     display: block;

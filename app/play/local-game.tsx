@@ -263,34 +263,9 @@ export function LocalGame({
               )
             }
           >
-            {pieceStyle === "western" ? "帥 Traditional" : "G Western"}
+            {pieceStyle === "western" ? "帥 Chinese" : "ABC English"}
           </button>
         </div>
-      </div>
-      <div className="piece-key" aria-label="Western piece key">
-        <b>PIECE KEY</b>
-        <span>
-          <i>G</i> General
-        </span>
-        <span>
-          <i>A</i> Advisor
-        </span>
-        <span>
-          <i>E</i> Elephant
-        </span>
-        <span>
-          <i>H</i> Horse
-        </span>
-        <span>
-          <i>R</i> Rook
-        </span>
-        <span>
-          <i>C</i> Cannon
-        </span>
-        <span>
-          <i>S</i> Soldier
-        </span>
-        <small>Coordinates use files a–i and ranks 0–9.</small>
       </div>
       <div className="game-layout">
         <aside className="player-column">
@@ -554,7 +529,7 @@ function getFirstGameGuide(
   if (moveCount === 1) {
     return {
       title: "Black replies",
-      copy: "Try a Horse (H). It moves like a knight, but a neighboring piece can block its first straight step.",
+      copy: "Try a Horse. It moves like a knight, but a neighboring piece can block its first straight step.",
     };
   }
   if (moveCount < 4) {

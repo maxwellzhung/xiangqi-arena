@@ -187,7 +187,7 @@ export function ReplayViewer({ gameId }: { gameId: string }) {
                 )
               }
             >
-              {pieceStyle === "western" ? "帥 Traditional" : "G Western"}
+              {pieceStyle === "western" ? "帥 Chinese" : "ABC English"}
             </button>
             <button
               type="button"

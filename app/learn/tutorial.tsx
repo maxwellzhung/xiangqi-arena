@@ -88,7 +88,7 @@ const lessons: readonly BoardLesson[] = [
       {
         id: "find-cannon",
         kind: "select",
-        prompt: "Find and select Red’s Cannon (C) on b2.",
+        prompt: "Find and select Red’s Cannon on b2.",
         position: createInitialPosition(),
         targetSquare: { column: 1, row: 7 },
         success: "Correct. b2 is a Red Cannon standing on an intersection.",
@@ -106,8 +106,8 @@ const lessons: readonly BoardLesson[] = [
       "The General resembles a restricted king; the Advisor has no direct Western-chess equivalent.",
     beginnerBridge:
       "Keep the General safe. Losing it ends the game, so its Advisors stay close.",
-    validExample: "A d0–e1 stays on a palace diagonal.",
-    invalidExample: "A d0–c1 leaves the palace.",
+    validExample: "Advisor d0–e1 stays on a palace diagonal.",
+    invalidExample: "Advisor d0–c1 leaves the palace.",
     challenges: [
       {
         id: "advisor-palace",
@@ -145,8 +145,8 @@ const lessons: readonly BoardLesson[] = [
       "Unlike a bishop, the Elephant has a fixed two-point move and cannot travel across the whole diagonal.",
     beginnerBridge:
       "Trace the two-step diagonal: the first intersection must be empty, and the destination must remain on your side.",
-    validExample: "E c0–a2 works because b1 is clear.",
-    invalidExample: "E c0–e2 is blocked by the Soldier on d1.",
+    validExample: "Elephant c0–a2 works because b1 is clear.",
+    invalidExample: "Elephant c0–e2 is blocked by the Soldier on d1.",
     challenges: [
       {
         id: "elephant-eye",
@@ -184,8 +184,9 @@ const lessons: readonly BoardLesson[] = [
       "Unlike a knight, the Horse cannot jump over a blocked first step.",
     beginnerBridge:
       "Read the move in two parts: one straight step, then one diagonal step away.",
-    validExample: "H e4–g5 works because f4 is clear.",
-    invalidExample: "H e4–f6 fails because the Soldier on e5 blocks the leg.",
+    validExample: "Horse e4–g5 works because f4 is clear.",
+    invalidExample:
+      "Horse e4–f6 fails because the Soldier on e5 blocks the leg.",
     challenges: [
       {
         id: "horse-leg",
@@ -221,8 +222,8 @@ const lessons: readonly BoardLesson[] = [
       "This is the closest direct transfer from Western chess: the Rook moves the same way.",
     beginnerBridge:
       "A Rook travels in a straight line. Stop before the first friendly piece or on the first enemy piece.",
-    validExample: "R a0–a1 stops before the Soldier.",
-    invalidExample: "R a0–a3 tries to jump over the Soldier on a2.",
+    validExample: "Rook a0–a1 stops before the Soldier.",
+    invalidExample: "Rook a0–a3 tries to jump over the Soldier on a2.",
     challenges: [
       {
         id: "rook-line",
@@ -259,13 +260,13 @@ const lessons: readonly BoardLesson[] = [
       "No Western-chess piece changes its movement rule specifically for captures like this.",
     beginnerBridge:
       "For a normal move, the path must be clear. For a capture, count exactly one piece in between.",
-    validExample: "C b2×b8 jumps the single Soldier on b5.",
+    validExample: "Cannon b2×b8 jumps the single Soldier on b5.",
     invalidExample: "A Cannon capture with zero or two screens is illegal.",
     challenges: [
       {
         id: "cannon-screen",
         kind: "move",
-        prompt: "Select C on b2 and capture the Black Rook on b8.",
+        prompt: "Select the Cannon on b2 and capture the Black Rook on b8.",
         position: createPosition([
           { color: "black", type: "general", column: 4, row: 0 },
           { color: "black", type: "rook", column: 1, row: 1 },
@@ -293,8 +294,8 @@ const lessons: readonly BoardLesson[] = [
       "Soldiers do not capture diagonally, do not move two steps, and do not promote.",
     beginnerBridge:
       "Before the river: forward only. After the river: forward or sideways. Never backward.",
-    validExample: "S e5–f5 is legal after crossing the river.",
-    invalidExample: "S e5–e4 moves backward toward Red’s side.",
+    validExample: "Soldier e5–f5 is legal after crossing the river.",
+    invalidExample: "Soldier e5–e4 moves backward toward Red’s side.",
     challenges: [
       {
         id: "soldier-river",
@@ -330,8 +331,8 @@ const lessons: readonly BoardLesson[] = [
       "Treat the opposing General as a long-range attacker whenever both Generals share an open file.",
     beginnerBridge:
       "Draw a straight line between the Generals. If nothing blocks it, the position is illegal.",
-    validExample: "R e5–e4 keeps the Rook on the e-file.",
-    invalidExample: "R e5–d5 opens the file and exposes both Generals.",
+    validExample: "Rook e5–e4 keeps the Rook on the e-file.",
+    invalidExample: "Rook e5–d5 opens the file and exposes both Generals.",
     challenges: [
       {
         id: "flying-generals",

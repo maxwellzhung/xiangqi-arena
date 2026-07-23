@@ -5,13 +5,13 @@ import type { Move, Position, Square } from "@/packages/xiangqi-engine/src";
 import { getPiece, isInCheck } from "@/packages/xiangqi-engine/src";
 
 const english: Record<string, [string, string]> = {
-  general: ["G", "General"],
-  advisor: ["A", "Advisor"],
-  elephant: ["E", "Elephant"],
-  horse: ["H", "Horse"],
-  rook: ["R", "Rook"],
-  cannon: ["C", "Cannon"],
-  soldier: ["S", "Soldier"],
+  general: ["GEN", "General"],
+  advisor: ["ADV", "Advisor"],
+  elephant: ["ELE", "Elephant"],
+  horse: ["HRS", "Horse"],
+  rook: ["ROK", "Rook"],
+  cannon: ["CAN", "Cannon"],
+  soldier: ["SOL", "Soldier"],
 };
 const traditional: Record<string, [string, string]> = {
   general: ["帥", "General"],
@@ -131,12 +131,42 @@ export function XiangqiBoard({
   const occupiedCount = squares.filter((square) =>
     getPiece(position, square),
   ).length;
+  const pieceGuide = Object.entries(english).map(
+    ([type, [shortName, fullName]]) => ({
+      type,
+      fullName,
+      label:
+        styleMode === "western"
+          ? shortName
+          : `${traditional[type][0]} / ${blackTraditional[type]}`,
+    }),
+  );
   return (
     <div
       className={`game-board-frame orientation-${orientation} piece-mode-${styleMode}`}
     >
       <div className="board-label board-label-top">
         {orientation === "red" ? "BLACK" : "RED"}
+      </div>
+      <div
+        className="board-piece-guide"
+        aria-label={
+          styleMode === "western"
+            ? "English piece label guide"
+            : "Chinese piece character guide"
+        }
+      >
+        <strong>
+          {styleMode === "western" ? "ENGLISH LABELS" : "CHINESE PIECES"}
+        </strong>
+        <div role="list">
+          {pieceGuide.map((item) => (
+            <span role="listitem" key={item.type}>
+              <b>{item.label}</b>
+              {item.fullName}
+            </span>
+          ))}
+        </div>
       </div>
       <p className="sr-only" id={instructionsId}>
         Use the arrow keys to move between intersections. Press Enter or Space
@@ -212,6 +242,11 @@ export function XiangqiBoard({
                   top: `${(square.row / 9) * 100}%`,
                 }}
                 aria-label={`${piece ? `${piece.color} ${name}` : "Empty intersection"}, coordinate ${coordinate}${selectedNow ? ", selected" : ""}${destination ? ", legal destination" : ""}${hinted ? ", hint" : ""}`}
+                title={
+                  piece
+                    ? `${piece.color === "red" ? "Red" : "Black"} ${name} — ${label}`
+                    : undefined
+                }
                 aria-selected={selectedNow}
                 aria-disabled={disabled}
                 disabled={disabled}

@@ -462,7 +462,7 @@ export function OnlineGameClient({ roomOrGameId }: { roomOrGameId: string }) {
               )
             }
           >
-            {pieceStyle === "western" ? "帥 Traditional" : "G Western"}
+            {pieceStyle === "western" ? "帥 Chinese" : "ABC English"}
           </button>
         </div>
       </div>
