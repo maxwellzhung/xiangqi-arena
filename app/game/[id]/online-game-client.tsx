@@ -71,7 +71,7 @@ export function OnlineGameClient({ roomOrGameId }: { roomOrGameId: string }) {
   const [selected, setSelected] = useState<Square | null>(null);
   const [orientation, setOrientation] = useState<Color>("red");
   const [pieceStyle, setPieceStyle] = useState<"western" | "traditional">(
-    "western",
+    "traditional",
   );
   const [notice, setNotice] = useState("Connecting to the game service…");
   const [busy, setBusy] = useState(false);

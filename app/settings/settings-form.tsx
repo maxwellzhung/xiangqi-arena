@@ -10,7 +10,7 @@ type Preferences = {
   motion: boolean;
 };
 const defaults: Preferences = {
-  pieces: "western",
+  pieces: "traditional",
   sound: true,
   coordinates: true,
   motion: true,

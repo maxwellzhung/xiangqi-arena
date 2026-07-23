@@ -41,7 +41,7 @@ export function XiangqiBoard({
   selected,
   legalMoves = [],
   lastMove,
-  styleMode = "western",
+  styleMode = "traditional",
   orientation = "red",
   onSelect,
   onMove,

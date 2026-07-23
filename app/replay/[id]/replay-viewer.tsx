@@ -81,7 +81,7 @@ export function ReplayViewer({ gameId }: { gameId: string }) {
   );
   const [orientation, setOrientation] = useState<"red" | "black">("red");
   const [pieceStyle, setPieceStyle] = useState<"western" | "traditional">(
-    "western",
+    "traditional",
   );
   const currentStep = Math.min(step, positions.length - 1);
   useEffect(() => {

@@ -39,7 +39,7 @@ export function LocalGame({
   const [selected, setSelected] = useState<Square | null>(null);
   const [lastMove, setLastMove] = useState<Move | null>(null);
   const [pieceStyle, setPieceStyle] = useState<"western" | "traditional">(
-    "western",
+    "traditional",
   );
   const [orientation, setOrientation] = useState<"red" | "black">("red");
   const [dialog, setDialog] = useState<Dialog>(null);
